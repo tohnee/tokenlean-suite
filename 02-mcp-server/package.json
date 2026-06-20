@@ -1,0 +1,21 @@
+{
+  "name": "tokenlean-mcp",
+  "version": "1.0.0",
+  "description": "Universal token-optimization MCP server for any coding agent or web copilot. Zero-dependency core (Node >= 18); gpt-tokenizer is optional (bench-output.mjs only, falls back to chars/4).",
+  "main": "tokenlean.mjs",
+  "type": "module",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node test/test-stdio.mjs && node test/test-http.mjs",
+    "bench": "node test/bench-output.mjs"
+  },
+  "keywords": ["mcp", "token-optimization", "cache", "prefix-cache", "coding-agent"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "gpt-tokenizer": "^2.9.0"
+  }
+}

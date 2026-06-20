@@ -1,0 +1,10 @@
+{
+  "//": "tokenlean-workflow for OpenCode. Merge into opencode.json. The plugin is auto-loaded from .opencode/plugin/. permission.edit:'ask' backs up the surgical-edits discipline.",
+  "permission": {
+    "edit": "allow",
+    "bash": "allow"
+  },
+  "instructions": [
+    ".opencode/tokenlean-instructions.md"
+  ]
+}
