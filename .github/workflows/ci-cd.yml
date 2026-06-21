@@ -132,8 +132,10 @@ jobs:
 
       - name: Verify no debug/secret commits
         run: |
-          ! git log --oneline -1 | grep -iE 'debug|secret|password|token|key|xxx' || {
-            echo "✗ Commit message contains sensitive keywords"; exit 1;
+          # 防止真实的 secret/credential 泄漏 (key=value 或 key: value 形式)，
+          # 而非阻止包含这些单词的常规提交 (例如 'add token-bucket limiter')。
+          ! git log --oneline -1 | grep -iE '(debug|secret|password|token|key|xxx)\s*[:=]\s*\S+' || {
+            echo "✗ Commit message contains sensitive assignment (key=value)"; exit 1;
           }
 
   # ── 3. PUBLISH: to npm registry (tag push only) ──
