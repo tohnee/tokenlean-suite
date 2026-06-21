@@ -5,10 +5,15 @@
 ## 组件
 - 01-workflow/      skills + hooks,L3-L4,FUTURE 主战场。开箱即用,35测试通过。
 - 02-mcp-server/    MCP 工具,L2,OUTPUT 主战场。stdio+http 双形态,50测试通过。
+- 03-rag-server/    RAG MCP 服务器,chatbot 场景缓存优化。复用 04 的 planRag/normalizeRetrieved。HTTP 形态,36+12+35测试通过。
 - 03-gateway-design/ 网关代理,L1,INPUT 主战场。设计完成,待实现。
 
 ## 文档
 - README.md                 统一系统设计方案(主文档)
+- INTEGRATION-GUIDE.md      专用接入指南(Coding Agent + Chatbot RAG,含配置参数和连接步骤)
+- DEPLOYMENT-GUIDE.md       部署与使用流程(场景选择、安装、启动、维护、FAQ)
+- STACK-README.md           叠加架构说明(rtk + Headroom + caveman + 本项目)
+- TEST-REPORT.md            测试报告(195断言,0失败)
 - docs/cache-research-report.md         三维度原理深度调研
 - docs/skills-feasibility-analysis.md   skills 可行性分析
 - docs/universal-token-optimization.md  通用化方案

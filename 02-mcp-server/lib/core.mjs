@@ -73,6 +73,20 @@ export function createCore({ root, readOnly = false }) {
   const ROOT = resolve(root);
   const stats = { edits: 0, rejected: 0, relocated: 0, actualOutTokens: 0, baselineOutTokens: 0 };
 
+  /**
+   * Reset session stats. Useful when a single core is reused across
+   * multiple sessions (e.g. stdio mode where the process lives for the
+   * entire agent lifetime). Calling this between sessions isolates
+   * token_report to the current session's activity.
+   */
+  function resetStats() {
+    stats.edits = 0;
+    stats.rejected = 0;
+    stats.relocated = 0;
+    stats.actualOutTokens = 0;
+    stats.baselineOutTokens = 0;
+  }
+
   // ── path safety: every fs operation is confined to ROOT ──
   function safePath(p) {
     const abs = isAbsolute(p) ? resolve(p) : resolve(ROOT, p);
@@ -402,6 +416,9 @@ export function createCore({ root, readOnly = false }) {
           `Honest note: vs a competent minimal-unique str_replace, hash editing is roughly`,
           `neutral on strong models (often within ±10%). Its durable value is fail-fast safety`,
           `and avoiding full-file rewrites — not beating a tight diff on token count.`,
+          ``,
+          `To reset these counters for a new session (e.g. in stdio mode), call`,
+          `resetStats() on the core object. HTTP sessions auto-reset on new initialize.`,
         ].join('\n');
       },
     },
@@ -449,5 +466,5 @@ export function createCore({ root, readOnly = false }) {
     }
   }
 
-  return { tools, dispatch, stats, serverInfo: SERVER_INFO, root: ROOT };
+  return { tools, dispatch, stats, resetStats, serverInfo: SERVER_INFO, root: ROOT };
 }

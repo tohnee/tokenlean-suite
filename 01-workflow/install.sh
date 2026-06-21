@@ -96,4 +96,33 @@ Done. Three token dimensions are now wired:
 Tuning (env vars): TOKENLEAN_BASH_MODE=guard|auto|off
                    TOKENLEAN_WRITE_MODE=guard|warn|off
 Run /token-audit anytime for a snapshot. See DESIGN.md for the full model.
+
+╔══════════════════════════════════════════════════════════════════════╗
+║ RECOMMENDED: install additional tools for each token-saving layer   ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                    ║
+║  rtk  (cli output compression)                                     ║
+║    git clone https://github.com/azat-io/rtk                        ║
+║    cargo install --path .                                          ║
+║    # wraps agent command: rtk -- claude code                       ║
+║    # replaces bash-guard's suggestion-only approach with real      ║
+║    # output compression (60-90% CLI output reduction)              ║
+║                                                                    ║
+║  Headroom (api proxy, prefix cache + CCR)                          ║
+║    npm install -g headroom                                         ║
+║    headroom --provider anthropic --api-key \$KEY --port 8080         ║
+║    # change agent's base_url to http://localhost:8080              ║
+║    # provides: CacheAligner (INPUT), SmartCrusher (FUTURE), CCR    ║
+║                                                                    ║
+║  caveman (output narrative compression)                            ║
+║    npm install -g caveman                                          ║
+║    # add to CLAUDE.md: "You communicate in compressed telegraphic   ║
+║    #  style (caveman mode)"                                       ║
+║    # cuts narrated output tokens by ~65%, complementary to         ║
+║    # tokenlean's edit-focused OUTPUT optimization                  ║
+║                                                                    ║
+║  See STACK-README.md in this directory for the full stack setup.   ║
+║                                                                    ║
+╚══════════════════════════════════════════════════════════════════════╝
+
 EOF

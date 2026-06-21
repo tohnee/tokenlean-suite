@@ -1,0 +1,21 @@
+{
+  "name": "tokenlean-rag",
+  "version": "0.1.0",
+  "description": "Cache-aware RAG MCP server for chatbots. Reuses prompt-assembler's planRag/normalizeRetrieved. Zero-dependency core (Node >= 18).",
+  "main": "tokenlean.mjs",
+  "type": "module",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node test/test-rag.mjs && node test/simulate-chatbot.mjs && node test/http-e2e.mjs",
+    "test:unit": "node test/test-rag.mjs",
+    "test:sim": "node test/simulate-chatbot.mjs",
+    "test:e2e": "node test/http-e2e.mjs",
+    "demo": "node cli-demo.mjs"
+  },
+  "keywords": ["mcp", "rag", "token-optimization", "prefix-cache", "chatbot"],
+  "author": "",
+  "license": "ISC"
+}

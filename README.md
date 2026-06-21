@@ -306,13 +306,26 @@
 │   └─ workflow + MCP server。OUTPUT 维度吃满。
 │
 ├─ 长会话 / agent 挂机 / 账单大头在 INPUT
-│   └─ 必须上 gateway(阶段3)。INPUT 是长会话的成本主体。
+│   └─ 推荐:Headroom (https://github.com/nicholasgriffintn/headroom)
+│       作为 L1 网关代理,注入缓存断点 + TTL,无需自建 gateway。
+│       Headroom 同时提供 SmartCrusher(FUTURE 压缩)和 CCR(可逆压缩)能力。
+│       或者 LiteLLM 的 cache_control_injection_points 也是成熟方案。
 │
 ├─ 网页端 copilot(Claude.ai / chatbot)
 │   └─ MCP server 用 http 形态(带鉴权)。workflow 不适用(无 hook 机制)。
 │
 ├─ 企业内部自建 agent
-│   └─ 全栈:fork OpenCode + 内置 workflow 逻辑 + gateway。一次工程,长期生效。
+│   └─ 全栈:fork OpenCode + 内置 workflow 逻辑 + Headroom 作为 gateway。一次工程,长期生效。
+│
+├─ 想要三维度都覆盖,用一套脚本快速搭建
+│   └─ 运行 tokenlean-suite 根目录下的 install-stack.sh,一键安装:
+│       workflow + MCP + rtk(CLI压缩) + Headroom(gateway) + caveman(叙述压缩)
+│       详见同目录 STACK-README.md 和 DEPLOYMENT-GUIDE.md。
+│
+├─ Chatbot + RAG 场景(Claude.ai / ChatGPT / 自建)
+│   └─ bash install-stack.sh --rag --start
+│       自动构建 + 启动 tokenlean-rag(cache-aware RAG MCP),生成开机自启服务单元。
+│       详见 DEPLOYMENT-GUIDE.md 第三章。
 │
 └─ 就是想要理论最优、愿意投入工程
     └─ 阶段1-4 全上,或直接采用 Reasonix(DeepSeek)/ omp 架构。
@@ -326,10 +339,14 @@
 |---|---|---|---|
 | Workflow(skills+hooks) | `tokenlean-workflow.tar.gz` | ✅ 可部署 | 35/35 |
 | MCP server | `tokenlean-mcp.tar.gz` | ✅ 可部署 | 50/50 |
+| RAG server(chatbot) | `03-rag-server/` | ✅ 可部署 | 36+12+35 |
+| Prompt assembler(共享库) | `04-prompt-assembler/` | ✅ | — |
 | Gateway | — | 📐 设计完成 | 待实现 |
 | 三维度原理调研 | `cache-research-report.md` | ✅ | — |
 | Skills 可行性分析 | `skills-feasibility-analysis.md` | ✅ | — |
 | 通用化方案 | `universal-token-optimization.md` | ✅ | — |
+| 部署指南 | `DEPLOYMENT-GUIDE.md` | ✅ | — |
+| 接入指南 | `INTEGRATION-GUIDE.md` | ✅ | — |
 | 本统一设计 | `MASTER-DESIGN.md` | ✅ | — |
 
 ---
