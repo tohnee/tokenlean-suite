@@ -3,13 +3,18 @@
 省 token 的三层可叠加系统。先读 README.md(统一设计方案)。
 
 ## 组件
-- 01-workflow/      skills + hooks,L3-L4,FUTURE 主战场。开箱即用,35测试通过。
+- 01-workflow/      skills + hooks,L3-L4,FUTURE 主战场。开箱即用,35+25+63测试通过。
 - 02-mcp-server/    MCP 工具,L2,OUTPUT 主战场。stdio+http 双形态,50测试通过。
 - 03-rag-server/    RAG MCP 服务器,chatbot 场景缓存优化。复用 04 的 planRag/normalizeRetrieved。HTTP 形态,36+12+35测试通过。
 - 03-gateway-design/ 网关代理,L1,INPUT 主战场。设计完成,待实现。
 
 ## 文档
 - README.md                 统一系统设计方案(主文档)
+- QUICKSTART.md             快速上手(3分钟,含npm安装和bin命令速查)
+- COMPARISON-REPORT.md      与 edimuj/tokenlean 深度架构对比分析
+- REFACTOR-PLAN.md          重构计划（CLI 化 + npm 发布）
+- LOCAL-VERIFY.md          本地运行指南（启动、验证、token 节省效果）
+- REFERENCE-REVIEW.md      碧桂园实践复盘与可借鉴优化点分析
 - INTEGRATION-GUIDE.md      专用接入指南(Coding Agent + Chatbot RAG,含配置参数和连接步骤)
 - DEPLOYMENT-GUIDE.md       部署与使用流程(场景选择、安装、启动、维护、FAQ)
 - STACK-README.md           叠加架构说明(rtk + Headroom + caveman + 本项目)

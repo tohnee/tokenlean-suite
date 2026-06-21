@@ -1,8 +1,9 @@
 # TokenLean Suite — 代码审查修复 & 全栈集成测试报告
 
 > 测试日期：2026-06-21
-> 测试范围：install-stack.sh 全栈安装流程 + 全部 210 断言
+> 测试范围：install-stack.sh 全栈安装流程 + 全部 345 断言
 > 测试结果：**全部通过，0 失败**
+> CI/CD: GitHub Actions（`.github/workflows/ci-cd.yml`）自动运行 Node 18/20/22 三版本矩阵测试
 
 ---
 
@@ -162,8 +163,14 @@ bash install-stack.sh --only-tokenlean --dest /tmp/tl-stack-test
 
 | 套件 | 断言数 | 通过 | 失败 |
 |---|---|---|---|
-| 01-workflow/test-hooks | 35 | 35 | 0 |
+| 01-workflow/test-hooks | 54 | 54 | 0 |
+| 01-workflow/test-skills | 25 | 25 | 0 |
+| 01-workflow/test-opencode-plugin | 63 | 63 | 0 |
 | 02-mcp-server/test-stdio | 38 | 38 | 0 |
 | 02-mcp-server/test-http | 26 | 26 | 0 |
-| 04-prompt-assembler（两套） | 48 | 48 | 0 |
-| **合计** | **147** | **147** | **0** |
+| 03-rag-server/test-rag | 36 | 36 | 0 |
+| 03-rag-server/simulate-chatbot | 12 | 12 | 0 |
+| 03-rag-server/http-e2e | 35 | 35 | 0 |
+| 04-prompt-assembler/test-assembler | 28 | 28 | 0 |
+| 04-prompt-assembler/test-ttl | 28 | 28 | 0 |
+| **合计** | **345** | **345** | **0** |

@@ -16,3 +16,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Test coverage
+coverage/
+
+# npm package lock (root only; sub-projects may have their own)
+package-lock.json

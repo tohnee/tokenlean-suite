@@ -81,9 +81,14 @@ esac
 echo
 echo "Running self-test..."
 if node "$SRC/test/test-hooks.mjs" >/tmp/tl-wf.log 2>&1; then
-  echo "✓ self-test: $(tail -1 /tmp/tl-wf.log | tr -d '═ ')"
+  echo "✓ hooks: $(tail -1 /tmp/tl-wf.log | tr -d '═ ')"
+  if node "$SRC/test/test-skills.mjs" >>/tmp/tl-wf.log 2>&1; then
+    echo "✓ skills: $(node -p "let c='$(tail -1 /tmp/tl-wf.log | tr -d '═ ')';c.match(/\d+ passed/)?.[0]||'ok'")"
+  else
+    echo "✗ skills test failed; see /tmp/tl-wf.log" >&2; exit 1
+  fi
 else
-  echo "✗ self-test failed; see /tmp/tl-wf.log" >&2; exit 1
+  echo "✗ hooks test failed; see /tmp/tl-wf.log" >&2; exit 1
 fi
 
 cat <<EOF

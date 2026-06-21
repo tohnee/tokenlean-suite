@@ -347,6 +347,8 @@
 | 通用化方案 | `universal-token-optimization.md` | ✅ | — |
 | 部署指南 | `DEPLOYMENT-GUIDE.md` | ✅ | — |
 | 接入指南 | `INTEGRATION-GUIDE.md` | ✅ | — |
+| 架构对比 | `COMPARISON-REPORT.md` | ✅ | — |
+| 重构计划 | `REFACTOR-PLAN.md` | ✅ | — |
 | 本统一设计 | `MASTER-DESIGN.md` | ✅ | — |
 
 ---

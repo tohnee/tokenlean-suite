@@ -42,3 +42,46 @@ the changed region — typically 40-95% fewer output tokens for the same result.
 Without a custom edit tool it can't change the wire format of `Edit` itself.
 It's behavioral: it keeps you choosing the cheap tool and the tight diff. The
 write-guard hook backs it up by interrupting full-file overwrites of large files.
+
+---
+
+## Output budget (beyond editing)
+
+### Set a token cap on every response
+Output tokens cost 4-5× input. Don't generate more than needed.
+- **Classification / formatting**: 10-50 tokens — you don't need paragraphs for
+  a label.
+- **Code review / brief summary**: 200-400 tokens.
+- **Full implementation**: 600-1200 tokens — break into multiple turns if larger.
+- **No explicit limit given**: default to 400 tokens, ask before exceeding.
+
+### Prefer structured output
+JSON or YAML carries the same information in 40-60% fewer tokens than prose:
+```json
+// Instead of:
+"The register endpoint has three params: username (required, 3-20 chars),
+ email (required, valid format), password (required, min 8 chars)."
+
+// Use:
+{ "register": {
+    "username": "required, 3-20 chars",
+    "email": "required, valid format",
+    "password": "required, min 8 chars"
+}}
+```
+When asked for structured data (configs, specs, test cases), default to JSON
+unless prose is explicitly requested. This is not laziness — it's 3× token
+efficiency for the same information.
+
+### Batch non-urgent work
+Tests, documentation generation, bulk conversions — these don't need real-time
+responses. Queue them for the Batch API at 50% discount. If you're generating
+>10 test cases, suggest: "Shall I batch these at half price?"
+
+### Summary
+```
+  Unbounded prose response     →  set max_tokens + max 3 sentences    ~30-50%
+  Verbose data description     →  JSON / YAML format                  ~40-60%
+  Real-time generation (urgent) →  keep synchronous, cap at 400 tok   —
+  Non-urgent generation        →  Batch API (50% discount)            ~50%
+```

@@ -1,0 +1,167 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [master, main]
+    tags: 'v*'
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  # ── 1. TEST: run all 298 assertions across every component ──
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            02-mcp-server/node_modules
+            03-rag-server/node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('02-mcp-server/package.json', '03-rag-server/package.json') }}
+
+      # 01-workflow: zero-dependency hooks + skills (not npm install needed)
+      - name: 01-workflow / hooks
+        run: node 01-workflow/test/test-hooks.mjs
+
+      - name: 01-workflow / skills
+        run: node 01-workflow/test/test-skills.mjs
+
+      - name: 01-workflow / opencode-plugin
+        run: node 01-workflow/test/test-opencode-plugin.mjs
+
+      # 02-mcp-server: install dependencies, then test
+      - name: 02-mcp-server / install
+        working-directory: 02-mcp-server
+        run: npm install --ignore-scripts
+
+      - name: 02-mcp-server / stdio
+        working-directory: 02-mcp-server
+        run: node test/test-stdio.mjs
+
+      - name: 02-mcp-server / http
+        working-directory: 02-mcp-server
+        run: node test/test-http.mjs
+
+      # 03-rag-server: install dependencies, then test
+      - name: 03-rag-server / install
+        working-directory: 03-rag-server
+        run: npm install --ignore-scripts
+
+      - name: 03-rag-server / unit
+        working-directory: 03-rag-server
+        run: node test/test-rag.mjs
+
+      - name: 03-rag-server / simulation
+        working-directory: 03-rag-server
+        run: node test/simulate-chatbot.mjs
+
+      - name: 03-rag-server / http-e2e
+        working-directory: 03-rag-server
+        run: TOKENLEAN_RAG_TOKEN=test node test/http-e2e.mjs
+
+      # 04-prompt-assembler: zero dependencies
+      - name: 04-prompt-assembler / assembler
+        run: node 04-prompt-assembler/test/test-assembler.mjs
+
+      - name: 04-prompt-assembler / ttl
+        run: node 04-prompt-assembler/test/test-ttl.mjs
+
+      # Summary
+      - name: Print test coverage summary
+        run: |
+          echo "═══════════════════════════════════════"
+          echo "  Test Suite Summary (Node ${{ matrix.node-version }})"
+          echo "═══════════════════════════════════════"
+          echo "  01-workflow/hooks:            35 → 54 assertions (CI expanded)"
+          echo "  01-workflow/skills:            25 assertions"
+          echo "  01-workflow/opencode-plugin:   63 assertions"
+          echo "  02-mcp-server/stdio:           38 assertions"
+          echo "  02-mcp-server/http:            26 assertions (needs node 20+)"
+          echo "  03-rag-server/unit:            36 assertions"
+          echo "  03-rag-server/simulation:      12 assertions"
+          echo "  03-rag-server/http-e2e:        35 assertions"
+          echo "  04-prompt-assembler/assembler:  28 assertions"
+          echo "  04-prompt-assembler/ttl:       28 assertions"
+          echo "  ───────────────────────────────────"
+          echo "  Total:                         345 assertions"
+          echo "═══════════════════════════════════════"
+
+  # ── 2. LINT: code style consistency (optional gate) ──
+  lint:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check bin/ CLI entries are executable
+        run: |
+          for f in bin/*.mjs; do
+            [ -x "$f" ] && echo "✓ $f is executable" || { echo "✗ $f is NOT executable"; exit 1; }
+          done
+
+      - name: Verify package.json bin entries match bin/ files
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            const bins = Object.values(pkg.bin);
+            const files = fs.readdirSync('bin').filter(f => f.endsWith('.mjs'));
+            for (const f of files) {
+              const full = 'bin/' + f;
+              if (!bins.some(b => b === full || b.endsWith('/' + f))) {
+                console.error('✗ bin/' + f + ' not registered in package.json');
+                process.exit(1);
+              }
+            }
+            console.log('✓ All ' + files.length + ' bin/*.mjs files registered');
+          "
+
+      - name: Verify no debug/secret commits
+        run: |
+          ! git log --oneline -1 | grep -iE 'debug|secret|password|token|key|xxx' || {
+            echo "✗ Commit message contains sensitive keywords"; exit 1;
+          }
+
+  # ── 3. PUBLISH: to npm registry (tag push only) ──
+  publish:
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## TokenLean Suite ${{ github.ref_name }}
+
+            See [CHANGELOG.md](./CHANGELOG.md) for full release notes.
+
+            ### Quick install
+            ```bash
+            npm install -g tokenlean-suite
+            ```

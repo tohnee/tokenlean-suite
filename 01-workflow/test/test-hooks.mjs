@@ -45,6 +45,22 @@ console.log('[1] cache-doctor (INPUT)');
   ok('clean file ok', good.ok === true && good.critical.length === 0);
   const big = diagnose('x '.repeat(11000));
   ok('oversize flagged critical', big.critical.some((c) => c.check === 'size'));
+
+  // placeholder detection
+  const pl = diagnose('# Project\n{{task}}\n## Rules\nUse TS.');
+  ok('placeholder flagged as warning', pl.warnings.some((c) => c.check === 'placeholder'));
+
+  // ordering: dynamic section before static → warning
+  const ord = diagnose('# Current Task\nFoo\n# Architecture\nBar');
+  ok('dynamic-before-static ordering flagged', ord.warnings.some((c) => c.check === 'ordering'));
+
+  // near-threshold size (3000-5000 tok = warning, not critical)
+  const near = diagnose('x '.repeat(7000));
+  ok('near-threshold size is warning not critical', near.warnings.some((c) => c.check === 'size') && !near.critical.some((c) => c.check === 'size'));
+
+  // report() returns text
+  const rpt = diagnose('x '.repeat(7000));
+  ok('report returns critical+warnings arrays', Array.isArray(rpt.critical) && Array.isArray(rpt.warnings));
 }
 
 // ── 2. bash-lint lib ──
@@ -60,6 +76,15 @@ console.log('\n[2] bash-lint (FUTURE INPUT)');
   ok('git log unbounded risky', lintCommand('git log').risky === true);
   ok('git log -n safe', lintCommand('git log -n 20').risky === false);
   ok('normal echo safe', lintCommand('echo hello').risky === false);
+  ok('find unbounded risky', lintCommand('find . -name "*.ts"').risky === true);
+  ok('find bounded safe', lintCommand('find . -name "*.ts" | head -n 50').risky === false);
+  ok('log tail unbounded risky', lintCommand('tail production.log').risky === true);
+  ok('log tail bounded safe', lintCommand('tail -n 200 production.log').risky === false);
+  ok('ls -R unbounded risky', lintCommand('ls -R src/').risky === true);
+  ok('empty command safe', lintCommand('').risky === false);
+  ok('null input safe', lintCommand(null).risky === false);
+  ok('piped bounded via jq safe', lintCommand('cat data.json | jq .items').risky === false);
+  ok('pipd bounded via wc safe', lintCommand('cat server.log | wc -l').risky === false);
 }
 
 // ── 3. hit-rate lib ──
@@ -89,6 +114,24 @@ console.log('\n[4] session-start hook (INPUT)');
   writeFileSync(join(SANDBOX, 'CLAUDE.md'), '# Project\n## Architecture\nNode.\n## Conventions\nNamed exports.');
   const r2 = runHook('session-start.mjs', { hook_event_name: 'SessionStart', cwd: SANDBOX });
   ok('silent on clean CLAUDE.md', r2.raw === '', `got: ${r2.raw}`);
+
+  // AGENTS.md path (OpenCode style) - need to remove CLAUDE.md first
+  rmSync(join(SANDBOX, 'CLAUDE.md'), { force: true });
+  writeFileSync(join(SANDBOX, 'AGENTS.md'), '# Now: 2026-01-15T08:30:00\n# Rules\nUse TS.');
+  const r3 = runHook('session-start.mjs', { hook_event_name: 'SessionStart', cwd: SANDBOX });
+  ok('picks up AGENTS.md when no CLAUDE.md', !!r3.json?.hookSpecificOutput?.additionalContext);
+
+  // no CLAUDE.md or AGENTS.md → silent
+  rmSync(join(SANDBOX, 'CLAUDE.md'), { force: true });
+  rmSync(join(SANDBOX, 'AGENTS.md'), { force: true });
+  const r4 = runHook('session-start.mjs', { hook_event_name: 'SessionStart', cwd: SANDBOX });
+  ok('silent when no CLAUDE.md/AGENTS.md', r4.raw === '', `got: ${r4.raw}`);
+
+  // .claude/CLAUDE.md path
+  mkdirSync(join(SANDBOX, '.claude'), { recursive: true });
+  writeFileSync(join(SANDBOX, '.claude', 'CLAUDE.md'), '# Now: 2026-01-15T08:30:00\n# Rules\nUse TS.');
+  const r5 = runHook('session-start.mjs', { hook_event_name: 'SessionStart', cwd: SANDBOX });
+  ok('picks up .claude/CLAUDE.md when root CLAUDE.md absent', !!r5.json?.hookSpecificOutput?.additionalContext);
 }
 
 // ── 5. bash-guard hook ──
@@ -131,6 +174,18 @@ console.log('\n[6] write-guard hook (OUTPUT)');
 
   const warn = runHook('write-guard.mjs', { tool_name: 'Write', tool_input: { file_path: big, content: 'const x = 2;\n'.repeat(200) } }, { TOKENLEAN_WRITE_MODE: 'warn' });
   ok('warn mode emits context not ask', !!warn.json?.hookSpecificOutput?.additionalContext && !warn.json?.hookSpecificOutput?.permissionDecision);
+
+  // edge: non-existent path → silent (file not found)
+  const missing = runHook('write-guard.mjs', { tool_name: 'Write', tool_input: { file_path: join(SANDBOX, 'not-here.ts'), content: 'x' } });
+  ok('non-existent path is silent (falls through to new file path)', missing.raw === '');
+
+  // edge: off mode
+  const off = runHook('write-guard.mjs', { tool_name: 'Write', tool_input: { file_path: big, content: 'new' } }, { TOKENLEAN_WRITE_MODE: 'off' });
+  ok('off mode is silent', off.raw === '');
+
+  // edge: non-Write tool
+  const nonWrite = runHook('write-guard.mjs', { tool_name: 'Read', tool_input: { file_path: big } });
+  ok('ignores non-Write tools', nonWrite.raw === '');
 }
 
 // ── 7. precompact hook ──
