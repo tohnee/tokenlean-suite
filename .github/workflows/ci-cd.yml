@@ -67,7 +67,8 @@ jobs:
 
       - name: 03-rag-server / http-e2e
         working-directory: 03-rag-server
-        run: TOKENLEAN_RAG_TOKEN=test node test/http-e2e.mjs
+        # 不设 TOKENLEAN_RAG_TOKEN：测试会自动 spawn RAG 服务器并在结束时清理
+        run: node test/http-e2e.mjs
 
       # 04-prompt-assembler: zero dependencies
       - name: 04-prompt-assembler / assembler
