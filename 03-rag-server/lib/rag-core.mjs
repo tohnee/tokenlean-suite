@@ -16,9 +16,12 @@
  * Zero dependencies. Node >= 18.
  */
 
+import { createHash } from 'node:crypto';
 import { planRag, normalizeRetrieved, reportAssembly, assemble, estTokens, STABILITY } from '../../04-prompt-assembler/lib/assembler.mjs';
 
 export const SERVER_INFO = { name: 'tokenlean-rag', version: '0.1.0' };
+const MAX_TOP_K = 50;
+const hashText = (s) => createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 
 /**
  * @typedef {object} RagChunk
@@ -105,14 +108,15 @@ export function createRagCore(opts = {}) {
    */
   function handleRagSearch({ query, top_k = 5, results }) {
     stats.searches++;
+    const k = Math.max(1, Math.min(Number(top_k) || 5, MAX_TOP_K));
 
     // Accept external results, or fall back to KB docs
     let chunks;
     if (Array.isArray(results) && results.length > 0) {
-      chunks = results;
+      chunks = results.slice(0, k);
     } else {
       // Fallback: return pinned + hot docs from KB
-      chunks = (kb.docs || []).slice(0, top_k).map((d) => ({ id: d.id, text: d.text, score: 0 }));
+      chunks = (kb.docs || []).slice(0, k).map((d) => ({ id: d.id, text: d.text, score: 0 }));
     }
 
     // Cache-aware normalization: stable id order, no volatile metadata
@@ -121,8 +125,9 @@ export function createRagCore(opts = {}) {
     stats.totalRetrievedTokens += normalized.reduce((s, c) => s + estTokens(c.text), 0);
 
     // Detect re-ask: is this tail byte-identical to the last one?
-    const tailHash = normalized.map((c) => `${c.id}:${c.text.length}`).join('|');
-    if (stats.lastTailHash === tailHash) {
+    const tailHash = normalized.map((c) => `${c.id}:${hashText(c.text)}`).join('|');
+    const isReask = stats.lastTailHash === tailHash;
+    if (isReask) {
       stats.reaskHits++;
     }
     stats.lastTailHash = tailHash;
@@ -153,7 +158,7 @@ export function createRagCore(opts = {}) {
     const tailTokens = normalized.reduce((s, c) => s + estTokens(c.text), 0);
 
     return [
-      `# rag_search results  (query: "${query}", top_k: ${top_k})`,
+      `# rag_search results  (query: "${query}", top_k: ${k})`,
       ``,
       `stable prefix (cacheable):  ${pinned.length} segment(s), ~${prefixTokens} tokens`,
       `normalized tail (volatile): ${normalized.length} chunk(s), ~${tailTokens} tokens`,
@@ -166,7 +171,7 @@ export function createRagCore(opts = {}) {
       ``,
       `--- chunk text ---`,
       ...normalized.map((c, i) => `[${i + 1}] ${c.text}`),
-      ...(stats.lastTailHash === tailHash && stats.searches > 1
+      ...(isReask && stats.searches > 1
         ? [`\n[!] same chunk set as previous query — cache hit possible for the volatile tail too (id-sorted, byte-identical)`]
         : []),
     ].join('\n');

@@ -3,7 +3,7 @@
  * test-assembler.mjs — proves the cache-aware assembler behaves correctly on
  * the four review scenarios. Pure, deterministic, no network.
  */
-import { assemble, planRag, normalizeRetrieved, scanVolatile, reportAssembly, STABILITY } from '../lib/assembler.mjs';
+import { assemble, planRag, normalizeRetrieved, scanVolatile, reportAssembly, toAnthropicMessages, STABILITY } from '../lib/assembler.mjs';
 
 let pass = 0, fail = 0;
 const ok = (n, c, d = '') => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}  ${d}`)); };
@@ -136,6 +136,24 @@ console.log('\n[7] report renders a structure plan');
   const r = reportAssembly(plan);
   ok('report shows breakpoint marker', /── breakpoint ──/.test(r));
   ok('report shows cacheable verdict', /cacheable prefix:/.test(r));
+}
+
+// ── provider adapter: make the plan directly usable by Anthropic-style APIs ──
+console.log('\n[8] Anthropic adapter emits cache_control at planned breakpoints');
+{
+  const plan = assemble([
+    { id: 'tools', role: 'tools', stability: STABILITY.STATIC, text: 'tool defs ' + 'x'.repeat(5000) },
+    { id: 'system', role: 'system', stability: STABILITY.STATIC, text: 'system rules ' + 'x'.repeat(5000) },
+    { id: 'kb', role: 'system', stability: STABILITY.SESSION, text: 'kb index ' + 'x'.repeat(5000) },
+    { id: 'history', role: 'messages', stability: STABILITY.ROLLING, text: 'previous turn' },
+    { id: 'q', role: 'messages', stability: STABILITY.VOLATILE, text: 'current question' },
+  ]);
+  const out = toAnthropicMessages(plan);
+  const cacheBlocks = [...out.tools, ...out.system, ...out.messages.flatMap((m) => m.content)]
+    .filter((b) => b.cache_control?.type === 'ephemeral');
+  ok('adapter keeps tools/system/messages separated', out.tools.length === 1 && out.system.length === 2 && out.messages.length === 2);
+  ok('adapter marks every planned breakpoint', cacheBlocks.length === plan.breakpoints.length, `blocks=${cacheBlocks.length}, breakpoints=${plan.breakpoints.length}`);
+  ok('volatile user question is not cache-marked', !out.messages.at(-1).content[0].cache_control);
 }
 
 console.log(`\n═══ ${pass} passed, ${fail} failed ═══`);

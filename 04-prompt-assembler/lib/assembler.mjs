@@ -262,4 +262,49 @@ export function reportAssembly(plan) {
   return L.join('\n');
 }
 
+/**
+ * Convert an assemble() plan into an Anthropic-style message payload shape.
+ *
+ * This adapter intentionally keeps the module pure: it does not call a provider
+ * API, but it turns the structural plan into directly usable blocks with
+ * cache_control markers at the planned breakpoint segment boundaries.
+ */
+export function toAnthropicMessages(plan) {
+  const breakpointIndexes = new Set((plan.breakpoints || []).map((b) => b.afterIndex));
+  const toBlock = (seg, index) => {
+    const block = {
+      type: 'text',
+      text: typeof seg.text === 'string' ? seg.text : JSON.stringify(seg.text),
+      tokenlean: {
+        id: seg.id,
+        stability: CLASS_NAME[seg.stability],
+        scope: seg.scope,
+      },
+    };
+    if (breakpointIndexes.has(index)) {
+      block.cache_control = { type: 'ephemeral' };
+    }
+    return block;
+  };
+
+  const tools = [];
+  const system = [];
+  const messages = [];
+
+  plan.ordered.forEach((seg, index) => {
+    const block = toBlock(seg, index);
+    if (seg.role === 'tools') tools.push(block);
+    else if (seg.role === 'system') system.push(block);
+    else messages.push({ role: 'user', content: [block] });
+  });
+
+  return { tools, system, messages, diagnostics: {
+    cacheable: plan.cacheable,
+    prefixTokens: plan.prefixTokens,
+    tailTokens: plan.tailTokens,
+    leaks: plan.leaks,
+    belowMin: plan.belowMin,
+  } };
+}
+
 export { estTokens, CLASS_NAME };

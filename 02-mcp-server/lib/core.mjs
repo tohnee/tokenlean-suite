@@ -28,6 +28,7 @@ export const LIMITS = {
   SEARCH_DEFAULT_MAX_RESULTS: 25,
   SEARCH_HARD_MAX_RESULTS: 80,
   SEARCH_MATCH_MAX_CHARS: 200,
+  READ_MAX_FILE_BYTES: Number(process.env.TOKENLEAN_READ_MAX_BYTES || 1_000_000),
   SEARCH_MAX_FILE_BYTES: 1_000_000,
   // SEARCH_MAX_FILES caps how many files search_lean walks. Lower this for
   // large repos on the HTTP transport (sync I/O blocks the event loop).
