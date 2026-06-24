@@ -3,7 +3,17 @@
 本文件记录 tokenlean-suite 的变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，
 版本号遵循 [Semantic Versioning](https://semver.org/)。
 
-## [Unreleased] — 2026-06-20
+## [Unreleased] — 2026-06-24
+
+### Benchmarks — 三维度量化补强
+
+- 新增 `02-mcp-server/test/bench-future.mjs`：用真实仓库文件和真实 MCP core 量化 FUTURE INPUT（工具输出进入历史后被后续轮次重复计费）的 context-token-turn 成本。
+- 新增 `02-mcp-server/test/test-bench-future.mjs`：覆盖 FUTURE benchmark 的操作数、lean/naive token、累积重计费收益和报告输出。
+- 重构 `02-mcp-server/test/bench-output.mjs`：导出 `runOutputBench()` / `renderOutputReport()`，保留 CLI 行为，便于统一聚合。
+- 新增 `bin/tl-bench.mjs` 与 `tl bench`：一条命令输出 OUTPUT、FUTURE INPUT、INPUT/RAG 三维度 savings report。
+- 新增 `test-bench.mjs` 和 `SAVINGS-REPORT.md`：把统一 benchmark 接入测试与发布文件。
+
+## [Earlier Unreleased] — 2026-06-20
 
 代码审查后的系统性修复：S1（文档对齐）→ S2（parity + 测试）→ M1-M2（设计文档与依赖）→ M3-M4（HTTP 会话与性能）。
 
