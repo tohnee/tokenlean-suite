@@ -46,6 +46,9 @@ writeFileSync(join(SANDBOX, 'src', 'big.ts'),
     `  const v${i} = ${i}; // filler line with deprecated_api maybe ${i % 37 === 0 ? 'deprecated_api()' : ''}`
   ).join('\n') + '\n');
 
+// oversized file: should be rejected before full read
+writeFileSync(join(SANDBOX, 'src', 'huge.log'), 'x'.repeat(1_100_000));
+
 // ── minimal MCP client ──
 const child = spawn('node', [SERVER, '--root', SANDBOX], { stdio: ['pipe', 'pipe', 'pipe'] });
 child.stderr.on('data', () => {}); // ignore banner
@@ -137,6 +140,11 @@ const outlineLines = outline.text.split('\n').length;
 check('outline finds chunk functions', outline.text.includes('chunk0') && outline.text.includes('chunk11'));
 check('outline is tiny vs full file', outline.text.length < 2500, `len=${outline.text.length} (full file ~70KB)`);
 console.log(`    → outline: ${outline.text.length} chars (~${Math.ceil(outline.text.length/4)} tokens) vs full read ~70000 chars (~17500 tokens)`);
+
+// 5b. oversized read protection
+console.log('\n[5b] oversized read protection');
+const hugeRead = await call('fs_read_hashed', { path: 'src/huge.log' });
+check('oversized file read rejected before full load', hugeRead.isError === true && hugeRead.text.includes('READ_MAX_FILE_BYTES'), hugeRead.text.slice(0, 200));
 
 // 6. fs_edit_hash happy path
 console.log('\n[6] fs_edit_hash success');

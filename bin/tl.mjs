@@ -12,6 +12,7 @@
  *   tl normalize <file>             # Normalize RAG chunks
  *   tl symbols <path>               # Code structure outline
  *   tl snippet <name> [path]        # Extract function/class by name
+ *   tl bench                        # Run unified savings benchmark
  *   tl test                         # Run all test suites
  */
 
@@ -47,12 +48,14 @@ USAGE
   tl normalize [file]  Normalize RAG chunks by stable id
   tl symbols [path]    Show code structure outline
   tl snippet [name]    Extract function/class by name
+  tl bench             Run OUTPUT + FUTURE + INPUT/RAG benchmarks
   tl test              Run all test suites
 
 EXAMPLES
   tl mcp stdio --root .
   tl rag http --token secret --port 8766
   tl audit --claudecode
+  tl bench --out SAVINGS-REPORT.md
   tl normalize results.json`);
 }
 
@@ -85,6 +88,9 @@ switch (cmd) {
     break;
   case 'snippet':
     run(BIN_TL('snippet'));
+    break;
+  case 'bench':
+    run(BIN_TL('bench'));
     break;
   default:
     if (cmd) console.error(`[tokenlean] unknown command: ${cmd}\n`);

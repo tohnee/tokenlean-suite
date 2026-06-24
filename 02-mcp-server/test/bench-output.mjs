@@ -175,32 +175,61 @@ function hashEdit(fileLines, task) {
 }
 
 // ── run ──
-console.log(`═══ REAL OUTPUT-token benchmark · tokenizer: ${TOKENIZER} ═══`);
-console.log('baseline = native Edit with COMPETENT minimal-unique old_str (fair, not inflated)\n');
-console.log('task                                         Write   Edit  Hash  | Hash vs Write  Hash vs Edit');
-console.log('─'.repeat(98));
-
-let totW = 0, totE = 0, totH = 0;
-for (const t of TASKS) {
-  const w = nativeWrite(FILE, t), e = nativeEdit(FILE, t), h = hashEdit(FILE, t);
-  totW += w; totE += e; totH += h;
-  const vsW = Math.round((1 - h / w) * 100);
-  const vsE = Math.round((1 - h / e) * 100);
-  console.log(
-    `${t.name.padEnd(44)} ${String(w).padStart(5)} ${String(e).padStart(5)} ${String(h).padStart(5)}  | ` +
-    `${(vsW + '%').padStart(11)}  ${(vsE + '%').padStart(11)}`
-  );
+export async function runOutputBench() {
+  let totW = 0, totE = 0, totH = 0;
+  const rows = [];
+  for (const t of TASKS) {
+    const write = nativeWrite(FILE, t);
+    const edit = nativeEdit(FILE, t);
+    const hash = hashEdit(FILE, t);
+    totW += write; totE += edit; totH += hash;
+    rows.push({
+      name: t.name,
+      write,
+      edit,
+      hash,
+      hashVsWriteSavingsPct: (1 - hash / write) * 100,
+      hashVsEditSavingsPct: (1 - hash / edit) * 100,
+    });
+  }
+  return {
+    dimension: 'OUTPUT',
+    tokenizer: TOKENIZER,
+    rows,
+    totals: { write: totW, edit: totE, hash: totH },
+    hashVsWriteSavingsPct: (1 - totH / totW) * 100,
+    hashVsEditSavingsPct: (1 - totH / totE) * 100,
+  };
 }
-console.log('─'.repeat(98));
-console.log(
-  `${'TOTAL'.padEnd(44)} ${String(totW).padStart(5)} ${String(totE).padStart(5)} ${String(totH).padStart(5)}  | ` +
-  `${((Math.round((1 - totH / totW) * 100)) + '%').padStart(11)}  ${((Math.round((1 - totH / totE) * 100)) + '%').padStart(11)}`
-);
 
-console.log('\nHonest reading:');
-console.log(`  vs Write (full rewrite): hash saves ${Math.round((1 - totH / totW) * 100)}% output tokens — the big, real win.`);
-console.log(`  vs competent Edit:       hash saves ${Math.round((1 - totH / totE) * 100)}% output tokens — smaller, because a good`);
-console.log(`                           model already writes a tight old_str. This is the fair number.`);
-console.log(`  Single-line edits:       hash is ~neutral or worse vs Edit; the anchor + JSON overhead`);
-console.log(`                           competes with a short old_str. Use native Edit for 1-liners.`);
-console.log('\nNOT measured here: whether a model picks these tokens, latency, or input/cache effects.');
+const pct = (n) => `${Math.round(n)}%`;
+export function renderOutputReport(result) {
+  const lines = [];
+  lines.push(`═══ REAL OUTPUT-token benchmark · tokenizer: ${result.tokenizer} ═══`);
+  lines.push('baseline = native Edit with COMPETENT minimal-unique old_str (fair, not inflated)\n');
+  lines.push('task                                         Write   Edit  Hash  | Hash vs Write  Hash vs Edit');
+  lines.push('─'.repeat(98));
+  for (const r of result.rows) {
+    lines.push(
+      `${r.name.padEnd(44)} ${String(r.write).padStart(5)} ${String(r.edit).padStart(5)} ${String(r.hash).padStart(5)}  | ` +
+      `${pct(r.hashVsWriteSavingsPct).padStart(11)}  ${pct(r.hashVsEditSavingsPct).padStart(11)}`
+    );
+  }
+  lines.push('─'.repeat(98));
+  lines.push(
+    `${'TOTAL'.padEnd(44)} ${String(result.totals.write).padStart(5)} ${String(result.totals.edit).padStart(5)} ${String(result.totals.hash).padStart(5)}  | ` +
+    `${pct(result.hashVsWriteSavingsPct).padStart(11)}  ${pct(result.hashVsEditSavingsPct).padStart(11)}`
+  );
+  lines.push('\nHonest reading:');
+  lines.push(`  vs Write (full rewrite): hash saves ${pct(result.hashVsWriteSavingsPct)} output tokens — the big, real win.`);
+  lines.push(`  vs competent Edit:       hash saves ${pct(result.hashVsEditSavingsPct)} output tokens — smaller, because a good`);
+  lines.push('                           model already writes a tight old_str. This is the fair number.');
+  lines.push('  Single-line edits:       hash is ~neutral or worse vs Edit; the anchor + JSON overhead');
+  lines.push('                           competes with a short old_str. Use native Edit for 1-liners.');
+  lines.push('\nNOT measured here: whether a model picks these tokens, latency, or input/cache effects.');
+  return lines.join('\n');
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log(renderOutputReport(await runOutputBench()));
+}

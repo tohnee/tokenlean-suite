@@ -8,7 +8,7 @@ on:
     branches: [master, main]
 
 jobs:
-  # ── 1. TEST: run all 298 assertions across every component ──
+  # ── 1. TEST: run all assertions across every component ──
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -52,6 +52,10 @@ jobs:
         working-directory: 02-mcp-server
         run: node test/test-http.mjs
 
+      - name: 02-mcp-server / future benchmark
+        working-directory: 02-mcp-server
+        run: node test/test-bench-future.mjs
+
       # 03-rag-server: install dependencies, then test
       - name: 03-rag-server / install
         working-directory: 03-rag-server
@@ -65,6 +69,14 @@ jobs:
         working-directory: 03-rag-server
         run: node test/simulate-chatbot.mjs
 
+      - name: 03-rag-server / benchmark
+        working-directory: 03-rag-server
+        run: node test/test-rag-benchmark.mjs
+
+      - name: 03-rag-server / live provider harness
+        working-directory: 03-rag-server
+        run: node test/test-live-provider-compare.mjs
+
       - name: 03-rag-server / http-e2e
         working-directory: 03-rag-server
         # 不设 TOKENLEAN_RAG_TOKEN：测试会自动 spawn RAG 服务器并在结束时清理
@@ -77,6 +89,9 @@ jobs:
       - name: 04-prompt-assembler / ttl
         run: node 04-prompt-assembler/test/test-ttl.mjs
 
+      - name: unified savings benchmark
+        run: node test-bench.mjs
+
       # Summary
       - name: Print test coverage summary
         run: |
@@ -88,11 +103,15 @@ jobs:
           echo "  01-workflow/opencode-plugin:   63 assertions"
           echo "  02-mcp-server/stdio:           38 assertions"
           echo "  02-mcp-server/http:            26 assertions (needs node 20+)"
+          echo "  02-mcp-server/future-bench:    8 assertions"
           echo "  03-rag-server/unit:            36 assertions"
           echo "  03-rag-server/simulation:      12 assertions"
+          echo "  03-rag-server/benchmark:       11 assertions"
+          echo "  03-rag-server/live-harness:    7 assertions"
           echo "  03-rag-server/http-e2e:        35 assertions"
           echo "  04-prompt-assembler/assembler:  28 assertions"
           echo "  04-prompt-assembler/ttl:       28 assertions"
+          echo "  unified benchmark:             5 assertions"
           echo "  ───────────────────────────────────"
           echo "  Total:                         345 assertions"
           echo "═══════════════════════════════════════"
