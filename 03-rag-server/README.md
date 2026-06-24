@@ -75,8 +75,45 @@ Connect your chatbot's MCP client:
 
 ```bash
 node test/test-rag.mjs
-# 36 assertions, all pass
+node test/simulate-chatbot.mjs
+node test/test-rag-benchmark.mjs
 ```
+
+## Chatbot + RAG savings lab
+
+Use the benchmark environment when you want to measure whether the cache-aware
+RAG layout is worth it for your chatbot workload before wiring a real provider.
+It runs a deterministic A/B comparison:
+
+- **Naive RAG**: raw retrieval results, including score/rank/timestamp, are
+  placed before the stable prompt. This intentionally causes prefix drift.
+- **Cache-aware RAG**: system prompt, KB index, and pinned docs stay in a stable
+  prefix; normalized retrieved chunks are placed after the cache breakpoint.
+
+Run it from the repo root:
+
+```bash
+node 03-rag-server/bench/chatbot-rag-benchmark.mjs
+# or, after package install/link:
+tl-rag bench
+
+# JSON output for dashboards/notebooks
+tl-rag bench --json --out /tmp/tokenlean-rag-benchmark.json
+```
+
+The report includes cache-hit turns, billed input tokens, estimated cost, and a
+quality proxy that verifies both layouts expose the same source ids. To measure
+real provider savings, keep the same A/B layouts and replace the local token
+estimates with provider usage fields such as uncached input, cache creation, and
+cache read tokens.
+
+For a live OpenAI-compatible provider test, provide only a base URL and API key:
+
+```bash
+tl-rag live --base-url "https://api.openai.com/v1" --api-key "$OPENAI_API_KEY" --turns 3
+```
+
+See `BENCHMARK-MANUAL.md` for the full step-by-step testing manual.
 
 ## Architecture
 
