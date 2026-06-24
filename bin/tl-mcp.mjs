@@ -14,10 +14,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 const binDir = join(here, '..', '02-mcp-server', 'bin');
 const [, , transport, ...rest] = process.argv;
 
+function run(file) {
+  const p = spawn('node', [file, ...rest], { stdio: 'inherit' });
+  p.on('exit', (code, signal) => {
+    if (signal) { process.kill(process.pid, signal); return; }
+    process.exit(code ?? 0);
+  });
+  p.on('error', (e) => { console.error(`[tokenlean] failed to spawn ${file}: ${e.message}`); process.exit(127); });
+}
+
 if (transport === 'stdio') {
-  spawn('node', [join(binDir, 'stdio.mjs'), ...rest], { stdio: 'inherit' });
+  run(join(binDir, 'stdio.mjs'));
 } else if (transport === 'http') {
-  spawn('node', [join(binDir, 'http.mjs'), ...rest], { stdio: 'inherit' });
+  run(join(binDir, 'http.mjs'));
 } else {
   console.log(`tl-mcp — Start tokenlean MCP server
 
