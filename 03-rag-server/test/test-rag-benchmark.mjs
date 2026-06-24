@@ -26,6 +26,8 @@ check('quality proxy preserves retrieved source ids', result.quality.sameSourceC
 const md = renderMarkdownReport(result);
 check('markdown report contains comparison table', md.includes('| Variant | Turns | Cache-hit turns | Input tokens billed | Cost |'));
 check('markdown report contains verification guidance', md.includes('How to plug in real provider usage'));
+check('markdown report includes explicit local benchmark conclusion', md.includes('Local benchmark conclusion'));
+check('benchmark result exposes conclusion fields', result.conclusion?.kind === 'local-estimate' && result.conclusion?.savingsPct >= 20, JSON.stringify(result.conclusion));
 
 console.log(`\n═══ ${pass} passed, ${fail} failed ═══`);
 process.exit(fail ? 1 : 0);

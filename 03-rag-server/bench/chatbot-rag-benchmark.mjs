@@ -183,6 +183,13 @@ export function runBenchmark(scenario = defaultScenario(), opts = {}) {
   const cacheAware = scoreVariant(cacheAwareTurns, opts);
   const savingsPct = (1 - cacheAware.totalCost / naive.totalCost) * 100;
 
+  const conclusion = {
+    kind: 'local-estimate',
+    savingsPct,
+    summary: `Local estimate: cache-aware RAG reduces billed input cost by ${pct(savingsPct)} in this repeated-KB chatbot workload (${cacheAware.cacheHitTurns}/${cacheAware.turns.length} turns hit the reusable prefix).`,
+    caveat: 'This is a deterministic local estimate, not a provider bill. Use live-provider-compare.mjs with your base URL and API key to collect real usage.',
+  };
+
   return {
     scenario: scenario.name,
     options: {
@@ -193,6 +200,7 @@ export function runBenchmark(scenario = defaultScenario(), opts = {}) {
     naive,
     cacheAware,
     savingsPct,
+    conclusion,
     quality: {
       sameSourceCoverage: naive.turns.every((t, i) => t.sourceIds === cacheAware.turns[i].sourceIds),
       note: 'Quality proxy only checks that both layouts expose the same normalized source ids; run answer-quality evals with your real model separately.',
@@ -216,6 +224,9 @@ export function renderMarkdownReport(result) {
     `| Variant | Turns | Cache-hit turns | Input tokens billed | Cost |\n` +
     `|---|---:|---:|---:|---:|\n${rows}\n\n` +
     `Estimated savings: **${pct(result.savingsPct)}**\n\n` +
+    `## Local benchmark conclusion\n\n` +
+    `${result.conclusion.summary}\n\n` +
+    `Caveat: ${result.conclusion.caveat}\n\n` +
     `## Cache-aware turn details\n\n` +
     `| Turn | Cache hit | Prefix tokens | Cached tokens | Billed tokens | Cost | Query |\n` +
     `|---:|---|---:|---:|---:|---:|---|\n${turnRows}\n\n` +

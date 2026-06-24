@@ -107,6 +107,14 @@ real provider savings, keep the same A/B layouts and replace the local token
 estimates with provider usage fields such as uncached input, cache creation, and
 cache read tokens.
 
+For a live OpenAI-compatible provider test, provide only a base URL and API key:
+
+```bash
+tl-rag live --base-url "https://api.openai.com/v1" --api-key "$OPENAI_API_KEY" --turns 3
+```
+
+See `BENCHMARK-MANUAL.md` for the full step-by-step testing manual.
+
 ## Architecture
 
 ```

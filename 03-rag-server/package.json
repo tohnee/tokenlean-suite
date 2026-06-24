@@ -9,11 +9,12 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node test/test-rag.mjs && node test/simulate-chatbot.mjs && node test/test-rag-benchmark.mjs && node test/http-e2e.mjs",
+    "test": "node test/test-rag.mjs && node test/simulate-chatbot.mjs && node test/test-rag-benchmark.mjs && node test/test-live-provider-compare.mjs && node test/http-e2e.mjs",
     "test:unit": "node test/test-rag.mjs",
     "test:sim": "node test/simulate-chatbot.mjs",
     "test:bench": "node test/test-rag-benchmark.mjs",
     "bench": "node bench/chatbot-rag-benchmark.mjs",
+    "bench:live": "node bench/live-provider-compare.mjs",
     "test:e2e": "node test/http-e2e.mjs",
     "demo": "node cli-demo.mjs"
   },
