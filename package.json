@@ -16,7 +16,6 @@
   },
   "files": [
     "bin/*.mjs",
-    "01-workflow/.claude/",
     "01-workflow/claude-code/",
     "01-workflow/opencode/",
     "02-mcp-server/lib/core.mjs",
@@ -48,7 +47,6 @@
     "test:assembler": "cd 04-prompt-assembler && node test/test-assembler.mjs && node test/test-ttl.mjs",
     "test:e2e": "cd 03-rag-server && node test/http-e2e.mjs",
     "test:coverage": "c8 -r html -r text -o coverage --include='01-workflow/claude-code/lib/*.mjs' --include='01-workflow/claude-code/hooks/*.mjs' --include='02-mcp-server/lib/*.mjs' --include='03-rag-server/lib/*.mjs' --include='04-prompt-assembler/lib/*.mjs' npm test",
-    "prepare": "node bin/tl.mjs help",
     "rag": "tl-rag",
     "mcp": "tl-mcp"
   },

@@ -22,3 +22,8 @@ coverage/
 
 # npm package lock (root only; sub-projects may have their own)
 package-lock.json
+
+# Local Claude Code / IDE settings — never commit; install.sh deploys these from
+# 01-workflow/claude-code/ on demand.
+.claude/
+01-workflow/.claude/
