@@ -6,7 +6,8 @@
 - 01-workflow/      skills + hooks,L3-L4,FUTURE 主战场。开箱即用,35+25+63测试通过。
 - 02-mcp-server/    MCP 工具,L2,OUTPUT 主战场。stdio+http 双形态,50测试通过。
 - 03-rag-server/    RAG MCP 服务器,chatbot 场景缓存优化。复用 04 的 planRag/normalizeRetrieved。HTTP 形态,36+12+35测试通过。
-- 03-gateway-design/ 网关代理,L1,INPUT 主战场。设计完成,待实现。
+- 04-prompt-assembler/  缓存感知 Prompt 拼装层(L1/INPUT),28+20 测试通过。
+- 05-gateway-design/ 网关代理,L1,INPUT 主战场。设计完成,待实现。
 
 ## 文档
 - README.md                 统一系统设计方案(主文档)

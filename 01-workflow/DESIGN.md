@@ -135,7 +135,7 @@ tokenlean-workflow/
 ├── install.sh                      # 检测 agent、安装、自测
 ├── DESIGN.md  README.md
 ├── claude-code/
-│   ├── skills/{prefix-stable,surgical-edits,lean-context}/SKILL.md
+│   ├── skills/{prefix-stable,surgical-edits,lean-context,prompts-compressor}/SKILL.md
 │   ├── commands/{cache-report,lean-compact,token-audit}.md
 │   ├── hooks/{session-start,bash-guard,write-guard,precompact}.mjs
 │   ├── lib/{cache-doctor,bash-lint,hit-rate}.mjs

@@ -21,8 +21,13 @@ import { join } from "node:path";
 
 // ── shared lint logic (kept in-file so the plugin is self-contained) ──
 // Parity target: claude-code/lib/bash-lint.mjs + claude-code/lib/cache-doctor.mjs
-// A structural parity test (test/test-opencode-plugin.mjs) verifies these stay
-// in sync. If you add a rule or check on one side, add it on the other too.
+//
+// IMPORTANT: OpenCode loads plugins from a single file with no transpile step,
+// so we cannot `import` the .mjs source-of-truth at runtime — the rules are
+// duplicated below. A structural parity test (test/test-opencode-plugin.mjs,
+// Layer 2) reads this file and the .mjs source and fails CI if any rule,
+// regex, or check diverges. If you change a rule on ONE side, change it on
+// the OTHER side in the same commit.
 const BOUNDED = /\|\s*(head|tail|wc|jq|grep\s+-m)|--max-count|-m\s*\d|-n\s*\d|-maxdepth|head\s+-c|sed\s+-n/;
 const RISKY: { name: string; re: RegExp; bound: (c: string) => string }[] = [
   { name: "cat",    re: /^\s*cat\s+(?!.*\|)/,                                bound: (c) => c.replace(/^\s*cat\s+/, 'sed -n "1,200p" ') },

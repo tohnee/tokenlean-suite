@@ -10,7 +10,7 @@ Zero-dependency single codebase, two transports (Node >= 18, no npm install):
 
 Both transports share `lib/core.mjs` — the same 6 tools, the same path
 sandbox, the same token discipline. The INPUT dimension (prefix cache
-shaping) is **not** in this package; see `03-gateway-design/` and
+shaping) is **not** in this package; see `05-gateway-design/` and
 `04-prompt-assembler/` for the companion design and library.
 
 Works with: Claude Code, OpenCode, Codex CLI, Cursor, Windsurf, VS Code

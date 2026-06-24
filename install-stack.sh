@@ -29,20 +29,32 @@ set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$(pwd)"
-INSTALL_RTK=1
-INSTALL_CAVEMAN=1
+# Third-party installers are OPT-IN by default. Each clones from a public
+# upstream + runs cargo/npm install, which is a supply-chain risk: pin a
+# revision/version (see --rtk-rev / --caveman-version flags) if you enable
+# them in CI or shared environments.
+INSTALL_RTK=0
+INSTALL_CAVEMAN=0
 INSTALL_HEADROOM=0  # Headroom is opt-in (needs API key config)
 INSTALL_RAG=0       # RAG server for chatbots
 START_RAG=0         # auto-start RAG server after install
 RAG_PORT=8766       # default RAG server port
+RTK_REV=""          # optional pinned git rev for rtk
+CAVEMAN_VERSION=""  # optional pinned npm version for caveman
+HEADROOM_VERSION="" # optional pinned npm version for headroom
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --dest) DEST="$2"; mkdir -p "$DEST"; shift 2;;
+    --with-rtk) INSTALL_RTK=1; shift;;
+    --with-caveman) INSTALL_CAVEMAN=1; shift;;
     --no-rtk) INSTALL_RTK=0; shift;;
     --no-caveman) INSTALL_CAVEMAN=0; shift;;
     --no-headroom) INSTALL_HEADROOM=0; shift;;
     --with-headroom) INSTALL_HEADROOM=1; shift;;
+    --rtk-rev) RTK_REV="$2"; shift 2;;
+    --caveman-version) CAVEMAN_VERSION="$2"; shift 2;;
+    --headroom-version) HEADROOM_VERSION="$2"; shift 2;;
     --rag) INSTALL_RAG=1; shift;;
     --start) START_RAG=1; INSTALL_RAG=1; shift;;
     --port) RAG_PORT="$2"; shift 2;;
@@ -97,7 +109,14 @@ if [ "$INSTALL_RTK" = 1 ]; then
   if [ "$HAS_CARGO" = 1 ]; then
     echo "  Installing rtk from source (cargo)..."
     if [ -d /tmp/rtk-install ]; then rm -rf /tmp/rtk-install; fi
-    git clone --depth 1 https://github.com/azat-io/rtk.git /tmp/rtk-install 2>/dev/null || true
+    if [ -n "$RTK_REV" ]; then
+      git clone https://github.com/azat-io/rtk.git /tmp/rtk-install 2>/dev/null \
+        && (cd /tmp/rtk-install && git checkout "$RTK_REV") || true
+      echo "  • rtk pinned to rev: $RTK_REV"
+    else
+      git clone --depth 1 https://github.com/azat-io/rtk.git /tmp/rtk-install 2>/dev/null || true
+      echo "  ⚠ rtk not pinned (latest main). Use --rtk-rev <sha> for reproducible installs."
+    fi
     if [ -d /tmp/rtk-install ]; then
       cd /tmp/rtk-install && cargo install --path . 2>/dev/null && echo "  ✓ rtk installed (cargo)" || echo "  ⚠ rtk cargo install failed — try manual install"
       rm -rf /tmp/rtk-install
@@ -124,7 +143,9 @@ if [ "$INSTALL_CAVEMAN" = 1 ]; then
   echo "══ Step 4/5: caveman — output compression skill ══"
   if [ "$HAS_NPM" = 1 ]; then
     echo "  Installing caveman globally..."
-    npm install -g caveman 2>/dev/null && echo "  ✓ caveman installed" || echo "  ⚠ npm install failed — try: npm install -g caveman"
+    CAVEMAN_PKG="caveman${CAVEMAN_VERSION:+@$CAVEMAN_VERSION}"
+    [ -z "$CAVEMAN_VERSION" ] && echo "  ⚠ caveman not pinned (latest). Use --caveman-version <ver> for reproducible installs."
+    npm install -g "$CAVEMAN_PKG" 2>/dev/null && echo "  ✓ $CAVEMAN_PKG installed" || echo "  ⚠ npm install failed — try: npm install -g $CAVEMAN_PKG"
     echo ""
     echo "  To activate caveman mode, add to your CLAUDE.md:"
     echo '    You communicate in compressed telegraphic style (caveman mode).'
@@ -143,7 +164,9 @@ if [ "$INSTALL_HEADROOM" = 1 ]; then
   echo "══ Step 5/5: Headroom — API proxy / CCR ══"
   if [ "$HAS_NPM" = 1 ]; then
     echo "  Installing Headroom globally..."
-    npm install -g headroom 2>/dev/null && echo "  ✓ headroom installed" || echo "  ⚠ npm install failed — try: npm install -g headroom"
+    HEADROOM_PKG="headroom${HEADROOM_VERSION:+@$HEADROOM_VERSION}"
+    [ -z "$HEADROOM_VERSION" ] && echo "  ⚠ headroom not pinned (latest). Use --headroom-version <ver> for reproducible installs."
+    npm install -g "$HEADROOM_PKG" 2>/dev/null && echo "  ✓ $HEADROOM_PKG installed" || echo "  ⚠ npm install failed — try: npm install -g $HEADROOM_PKG"
     echo ""
     echo "  To use Headroom as your gateway:"
     echo "    headroom --provider anthropic --api-key \$ANTHROPIC_API_KEY --port 8080"

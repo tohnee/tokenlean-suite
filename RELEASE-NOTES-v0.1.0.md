@@ -255,7 +255,7 @@ curl http://127.0.0.1:8766/healthz
 |  | `bin.tl-mcp` / `tl-rag` / 6 个子命令 | ✅ |
 |  | 所有 bin 文件可执行 (chmod +x) | ✅ CI lint 验证 |
 | **文件白名单** | `bin/*.mjs` | ✅ |
-|  | `01-workflow/.claude/` + `claude-code/` | ✅ |
+|  | `01-workflow/claude-code/` (skills + hooks + lib + commands) | ✅ |
 |  | `02-mcp-server/{lib,bin,tokenlean.mjs}` | ✅ |
 |  | `03-rag-server/{lib,bin,tokenlean.mjs}` | ✅ |
 |  | `04-prompt-assembler/lib/` | ✅ |

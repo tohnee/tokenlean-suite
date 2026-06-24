@@ -13,8 +13,8 @@
 
 | 文件 | 变更内容 |
 |---|---|
-| `01-workflow/.claude/hooks/bash-guard.mjs` | 文件头增加 NOTE 区块，说明黑名单模式的不完备性，建议同时安装 rtk |
-| `01-workflow/.claude/skills/surgical-edits/SKILL.md` | 新增 "Compatible tools" 章节，说明与 caveman（乘法叠加）、rtk（正交）、tokenlean MCP（安全优先）的关系 |
+| `01-workflow/claude-code/hooks/bash-guard.mjs` | 文件头增加 NOTE 区块，说明黑名单模式的不完备性，建议同时安装 rtk |
+| `01-workflow/claude-code/skills/surgical-edits/SKILL.md` | 新增 "Compatible tools" 章节，说明与 caveman（乘法叠加）、rtk（正交）、tokenlean MCP（安全优先）的关系 |
 | `01-workflow/install.sh` | 安装完成后显示推荐框，列出 rtk、Headroom、caveman 的安装命令和用途 |
 | `README.md` | 选型决策中"长会话/INPUT 大头"方案改为推荐 Headroom；新增"三维度全栈一键安装"选项 |
 | `02-mcp-server/lib/core.mjs` | 新增 `resetStats()` 函数，在 stdio 模式的会话间隔离 stats；`token_report` 输出末行提示重置方法；`createCore()` 返回值增加 `resetStats` 导出 |
@@ -152,8 +152,8 @@ bash install-stack.sh --only-tokenlean --dest /tmp/tl-stack-test
 |---|---|
 | `README.md` | ✓ 已更新（增加 Headroom 推荐、全栈安装选项） |
 | `01-workflow/install.sh` | ✓ 已更新（增加推荐框） |
-| `01-workflow/.claude/hooks/bash-guard.mjs` | ✓ 已更新（增加 rtk 推荐注释） |
-| `01-workflow/.claude/skills/surgical-edits/SKILL.md` | ✓ 已更新（增加兼容工具章节） |
+| `01-workflow/claude-code/hooks/bash-guard.mjs` | ✓ 已更新（增加 rtk 推荐注释） |
+| `01-workflow/claude-code/skills/surgical-edits/SKILL.md` | ✓ 已更新（增加兼容工具章节） |
 | `install-stack.sh` | ✓ **新增** |
 | `STACK-README.md` | ✓ **新增** |
 

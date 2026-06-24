@@ -55,7 +55,7 @@ tokenlean-suite/
 │   └── test/             # 36 unit + 12 sim + 35 e2e
 ├── 04-prompt-assembler/  # 纯函数缓存感知拼装层
 │   └── lib/assembler.mjs # planRag, normalizeRetrieved, assemble
-├── 03-gateway-design/    # 网关代理设计（未实现）
+├── 05-gateway-design/    # 网关代理设计（未实现）
 ├── install-stack.sh      # 全栈一键安装器
 └── 多份 README/指南文档
 ```

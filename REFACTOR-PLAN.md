@@ -92,7 +92,7 @@ Examples:
 
 ### 1.2 CLI `tl audit`（P0 — 高价值，低工作量）
 
-从 `01-workflow/.claude/lib/hit-rate.mjs` 抽取审计逻辑，封装为独立 CLI。
+从 `01-workflow/claude-code/lib/hit-rate.mjs` 抽取审计逻辑，封装为独立 CLI。
 
 ```bash
 tl audit                          # 分析当前项目 .claude/transcripts
@@ -101,15 +101,15 @@ tl audit --savings                # 估算 token 节省空间
 tl audit --json                   # JSON 输出
 ```
 
-**实现路径**：从 `01-workflow/.claude/lib/hit-rate.mjs` 抽出核心逻辑，封装为 `bin/tl-audit.mjs`。该模块已有 `parseTranscripts`、`computeHitRate`、`estimateSavings` 等函数，只需添加 CLI 参数解析层。
+**实现路径**：从 `01-workflow/claude-code/lib/hit-rate.mjs` 抽出核心逻辑，封装为 `bin/tl-audit.mjs`。该模块已有 `parseTranscripts`、`computeHitRate`、`estimateSavings` 等函数，只需添加 CLI 参数解析层。
 
 #### 文件变更
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
 | `bin/tl-audit.mjs` | **新建** | CLI 入口，复用 `01-workflow` 的 hit-rate 和 cache-doctor 逻辑 |
-| `01-workflow/.claude/lib/hit-rate.mjs` | **修改** | 导出 `parseTranscripts`、`computeHitRate`、`estimateSavings` |
-| `01-workflow/.claude/lib/cache-doctor.mjs` | **修改** | 导出 `diagnosePrefix`、`scanVolatileContent` |
+| `01-workflow/claude-code/lib/hit-rate.mjs` | **修改** | 导出 `parseTranscripts`、`computeHitRate`、`estimateSavings` |
+| `01-workflow/claude-code/lib/cache-doctor.mjs` | **修改** | 导出 `diagnosePrefix`、`scanVolatileContent` |
 
 ### 1.3 CLI `tl plan` / `tl normalize`（P1）
 
@@ -284,8 +284,8 @@ const tools = [{
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| `01-workflow/.claude/lib/bash-lint.mjs` | **修改** | 添加输出摘要功能（detect 输出类型 → extract 关键行） |
-| `01-workflow/.claude/hooks/bash-guard.mjs` | **修改** | auto 模式启用输出摘要 |
+| `01-workflow/claude-code/lib/bash-lint.mjs` | **修改** | 添加输出摘要功能（detect 输出类型 → extract 关键行） |
+| `01-workflow/claude-code/hooks/bash-guard.mjs` | **修改** | auto 模式启用输出摘要 |
 
 ### 3.3 `symbols` / `snippet` CLI（P1）
 
@@ -357,10 +357,10 @@ const tools = [{
 
 | 文件 | 阶段 | 说明 |
 |------|------|------|
-| `01-workflow/.claude/lib/hit-rate.mjs` | 1 | 导出核心函数供 CLI 使用 |
-| `01-workflow/.claude/lib/cache-doctor.mjs` | 1 | 导出核心函数供 CLI 使用 |
-| `01-workflow/.claude/lib/bash-lint.mjs` | 3 | 添加输出摘要逻辑 |
-| `01-workflow/.claude/hooks/bash-guard.mjs` | 3 | auto 模式启用摘要 |
+| `01-workflow/claude-code/lib/hit-rate.mjs` | 1 | 导出核心函数供 CLI 使用 |
+| `01-workflow/claude-code/lib/cache-doctor.mjs` | 1 | 导出核心函数供 CLI 使用 |
+| `01-workflow/claude-code/lib/bash-lint.mjs` | 3 | 添加输出摘要逻辑 |
+| `01-workflow/claude-code/hooks/bash-guard.mjs` | 3 | auto 模式启用摘要 |
 | `README.md` | 2 | 增加 npm 安装说明 |
 | `INDEX.md` | 2 | 更新总目录 |
 
