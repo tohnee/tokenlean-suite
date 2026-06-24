@@ -143,12 +143,16 @@ const fb2 = await rpc('tools/call', { name: 'token_report', arguments: {} }, { s
 check('second sessionless request reuses __default__', (await fetch(`${BASE}/healthz`).then((r) => r.json())).sessions === sessAfter, `sessions grew unexpectedly`);
 // __default__ shares state: the read above is visible in token_report's accounting? 
 // (token_report tracks edits, not reads, so we verify isolation differently:
-//  two sessionless clients share the SAME core, so edits by one are visible to the other)
+//  edit attempts on __default__ are now REJECTED outright with -32001 so that
+//  state can't bleed between unrelated sessionless clients.)
 const fbEdit = await rpc('tools/call', {
   name: 'fs_edit_hash',
   arguments: { path: 'src/app.ts', start: '1:0000', end: '1:0000', content: 'X', allow_relocate: false },
 }, { sid: null });
-check('sessionless edit attempt handled (rejected as stale)', fbEdit.json?.result?.isError === true);
+check('sessionless edit attempt rejected with -32001', fbEdit.json?.error?.code === -32001,
+  `got: ${JSON.stringify(fbEdit.json).slice(0, 160)}`);
+check('rejection message points users at mcp-session-id', /mcp-session-id/.test(fbEdit.json?.error?.message || ''),
+  fbEdit.json?.error?.message);
 // __default__ can be DELETEd too (TTL eviction parity)
 const delDef = await fetch(`${BASE}/mcp`, { method: 'DELETE', headers: { authorization: `Bearer ${TOKEN}`, 'mcp-session-id': '__default__' } });
 check('DELETE __default__ returns ok', delDef.status === 200);

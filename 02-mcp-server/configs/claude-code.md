@@ -7,13 +7,13 @@
   "mcpServers": {
     "tokenlean": {
       "command": "node",
-      "args": ["/absolute/path/to/tokenlean-mcp/server.mjs", "--root", "."]
+      "args": ["/absolute/path/to/tokenlean-mcp/tokenlean.mjs", "stdio", "--root", "."]
     }
   }
 }
 ```
 
-或用户级:`claude mcp add tokenlean -- node /path/to/server.mjs --root .`
+或用户级:`claude mcp add tokenlean -- node /path/to/tokenlean.mjs stdio --root .`
 
 ## 2. 关键一步:用权限把原生 Edit 关掉(强制走 hash 编辑)
 

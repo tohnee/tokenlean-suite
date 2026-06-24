@@ -96,15 +96,25 @@ function authed(req) {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let data = '';
+    const chunks = [];
+    let size = 0;
     req.on('data', (c) => {
-      data += c;
-      if (data.length > 8_000_000) { reject(new Error('body too large')); req.destroy(); }
+      const buf = Buffer.isBuffer(c) ? c : Buffer.from(c);
+      size += buf.length;
+      if (size > 8_000_000) { reject(new Error('body too large')); req.destroy(); return; }
+      chunks.push(buf);
     });
-    req.on('end', () => resolve(data));
+    req.on('end', () => {
+      try { resolve(Buffer.concat(chunks).toString('utf8')); } catch (e) { reject(e); }
+    });
     req.on('error', reject);
   });
 }
+
+// Tools that mutate the workspace; sessionless clients are NOT allowed to call
+// these via the shared __default__ core (state would mix between unrelated
+// clients). Read-only tools remain available as a best-effort Q&A fallback.
+const MUTATING_TOOLS = new Set(['fs_edit_hash', 'fs_multi_edit_hash']);
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -180,13 +190,30 @@ const server = createServer(async (req, res) => {
 
   let result;
   try {
-    // core.dispatch is synchronous. search_lean walks up to SEARCH_MAX_FILES
-    // with statSync/readFileSync, which blocks the event loop. For the HTTP
-    // transport (multi-session), we yield to the event loop first so queued
-    // requests from other sessions get a chance to start before this potentially
-    // long sync call. For truly large repos, lower TOKENLEAN_SEARCH_MAX_FILES.
-    await new Promise((r) => setImmediate(r));
-    result = core.dispatch(msg);
+    // Reject mutating tool calls on the shared __default__ core: state would
+    // bleed between unrelated sessionless clients, and stale anchors would
+    // surface in unpredictable ways. Read-only tools stay available.
+    if (sid === '__default__'
+        && msg.method === 'tools/call'
+        && MUTATING_TOOLS.has(msg.params?.name)) {
+      result = {
+        jsonrpc: '2.0', id: msg.id,
+        error: {
+          code: -32001,
+          message:
+            `tool '${msg.params?.name}' requires an isolated session; send the mcp-session-id ` +
+            `returned from initialize. Sessionless clients only get read-only fallback.`,
+        },
+      };
+    } else {
+      // core.dispatch is synchronous. search_lean walks up to SEARCH_MAX_FILES
+      // with statSync/readFileSync, which blocks the event loop. For the HTTP
+      // transport (multi-session), we yield to the event loop first so queued
+      // requests from other sessions get a chance to start before this potentially
+      // long sync call. For truly large repos, lower TOKENLEAN_SEARCH_MAX_FILES.
+      await new Promise((r) => setImmediate(r));
+      result = core.dispatch(msg);
+    }
   } catch (e) {
     result = { jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: e.message } };
   }

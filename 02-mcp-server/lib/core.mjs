@@ -101,6 +101,12 @@ export function createCore({ root, readOnly = false }) {
     if (!existsSync(absPath)) throw new ToolError(`file not found: ${absPath}`);
     const st = statSync(absPath);
     if (st.isDirectory()) throw new ToolError(`path is a directory: ${absPath}`);
+    if (st.size > LIMITS.READ_MAX_FILE_BYTES) {
+      throw new ToolError(
+        `file too large: ${absPath} is ${st.size} bytes, exceeds READ_MAX_FILE_BYTES=${LIMITS.READ_MAX_FILE_BYTES}. ` +
+        `Use fs_outline to inspect structure, or raise TOKENLEAN_READ_MAX_BYTES if you intentionally want to load it.`
+      );
+    }
     const raw = readFileSync(absPath, 'utf8');
     const eol = raw.includes('\r\n') ? '\r\n' : '\n';
     const body = raw.endsWith(eol) ? raw.slice(0, -eol.length) : raw;
