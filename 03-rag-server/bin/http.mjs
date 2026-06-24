@@ -29,6 +29,14 @@ const host = argOf('--host', '127.0.0.1');
 const token = argOf('--token', process.env.TOKENLEAN_RAG_TOKEN || '');
 const kbIndex = argOf('--kb-index', process.env.TOKENLEAN_KB_INDEX || '');
 
+// CORS allow-list. Defaults to "*" for backwards compat (Bearer token in
+// header already prevents drive-by use). To lock down to specific dashboards:
+//   --allowed-origins "https://app.example.com,https://staging.example.com"
+//   TOKENLEAN_ALLOWED_ORIGINS=https://app.example.com
+const ALLOWED_ORIGINS = (argOf('--allowed-origins', process.env.TOKENLEAN_ALLOWED_ORIGINS || '*') || '*')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+const allowAnyOrigin = ALLOWED_ORIGINS.includes('*');
+
 if (!token) {
   process.stderr.write(
     '[tokenlean-rag] REFUSING TO START: no auth token.\n' +
@@ -84,25 +92,43 @@ function authed(req) {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let data = '';
+    const chunks = [];
+    let size = 0;
     req.on('data', (c) => {
-      data += c;
-      if (data.length > 8_000_000) { reject(new Error('body too large')); req.destroy(); }
+      const buf = Buffer.isBuffer(c) ? c : Buffer.from(c);
+      size += buf.length;
+      if (size > 8_000_000) { reject(new Error('body too large')); req.destroy(); return; }
+      chunks.push(buf);
     });
-    req.on('end', () => resolve(data));
+    req.on('end', () => {
+      try { resolve(Buffer.concat(chunks).toString('utf8')); } catch (e) { reject(e); }
+    });
     req.on('error', reject);
   });
 }
 
-// CORS headers for direct browser / chatbot connector access
+// Tools that mutate per-session state; sessionless clients are NOT allowed to
+// call these via the shared __default__ core (pinnedDocIds and stats counters
+// would leak across unrelated clients). Read-only tools remain available.
+const MUTATING_TOOLS = new Set(['kb_pin']);
+
+// CORS headers for direct browser / chatbot connector access. Origins outside
+// the allow-list (when --allowed-origins is set) receive NO ACAO header, so the
+// browser blocks the cross-origin response.
 function corsHeaders(req) {
-  const origin = req.headers['origin'] || '*';
-  return {
-    'access-control-allow-origin': origin,
+  const origin = req.headers['origin'];
+  const headers = {
     'access-control-allow-methods': 'POST, GET, DELETE, OPTIONS',
     'access-control-allow-headers': 'authorization, content-type, mcp-session-id',
     'access-control-max-age': '86400',
   };
+  if (allowAnyOrigin) {
+    headers['access-control-allow-origin'] = origin || '*';
+  } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    headers['access-control-allow-origin'] = origin;
+    headers['vary'] = 'Origin';
+  }
+  return headers;
 }
 
 const server = createServer(async (req, res) => {
@@ -183,8 +209,24 @@ const server = createServer(async (req, res) => {
 
   let result;
   try {
-    await new Promise((r) => setImmediate(r));
-    result = core.dispatch(msg);
+    // Reject mutating tool calls on the shared __default__ core: pinnedDocIds
+    // and session counters would bleed between unrelated sessionless clients.
+    if (sid === '__default__'
+        && msg.method === 'tools/call'
+        && MUTATING_TOOLS.has(msg.params?.name)) {
+      result = {
+        jsonrpc: '2.0', id: msg.id,
+        error: {
+          code: -32001,
+          message:
+            `tool '${msg.params?.name}' requires an isolated session; send the mcp-session-id ` +
+            `returned from initialize. Sessionless clients only get read-only fallback.`,
+        },
+      };
+    } else {
+      await new Promise((r) => setImmediate(r));
+      result = core.dispatch(msg);
+    }
   } catch (e) {
     result = { jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: e.message } };
   }
