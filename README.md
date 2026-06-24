@@ -276,12 +276,18 @@
 
 ### 各阶段预期收益叠加
 
-**重要**:下表区分"确定性会计基准"与"真实模型账单"。`tl bench` 现可一次性复现 OUTPUT / FUTURE INPUT / INPUT(RAG) 三个维度的 accounting benchmark;它证明工具/布局在 token 会计上能省多少,但不证明真实 agent 一定会选择这些路径,也不替代 provider usage 账单。
+**重要**:下表区分"确定性会计基准"与"真实模型账单"。`tl bench` 现可一次性复现 OUTPUT / FUTURE INPUT / CODING AGENT / INPUT(RAG) 四类 accounting benchmark;它证明工具/布局在 token 会计上能省多少,但不证明真实 agent 一定会选择这些路径,也不替代 provider usage 账单。
+
+`tl bench` 做四件事:
+1. **OUTPUT**:比较全文件 Write、称职 native Edit、hash-anchor edit 的编辑工具调用输出 token。
+2. **FUTURE INPUT**:比较 coding agent 在 repo orientation/search/inspection 时,lean MCP 输出与 naive 全量输出进入历史后被后续轮次重复计费的 context-token-turn 成本。
+3. **CODING AGENT**:把 FUTURE INPUT 的重计费输入成本和编辑 OUTPUT 成本合并成 coding-agent 使用场景,分别对比 full-rewrite agent 与 native-Edit agent。
+4. **INPUT/RAG**:比较 chatbot+RAG 的 naive volatile-first prompt 与 stable-prefix cache-aware prompt。
 
 | 部署到 | INPUT | OUTPUT | FUTURE | 综合 |
 |---|---|---|---|---|
 | 阶段 1(workflow) | 仅审计监控(0 实际控制) | 弱模型/重写场景受益 | 会计基准:工具输出重计费可省约 73% context-token-turns | 下降主要来自 FUTURE,实际取决于危险命令命中率 |
-| +阶段 2(MCP) | 仅审计监控 | **实测**:vs Write -86%、vs 称职 Edit ≈0、弱模型重试 -50~71% | 工具预算强制;`bench-future` 可复现 | 视模型与工作负载而定 |
+| +阶段 2(MCP) | 仅审计监控 | **实测**:vs Write -86%、vs 称职 Edit ≈0、弱模型重试 -50~71% | 工具预算强制;`bench-future` 可复现 | coding-agent 合并成本基准:约 74% vs full-rewrite agent / 73% vs native-Edit agent |
 | +阶段 3(gateway) | RAG 本地基准约 70% billed-input savings;真实 provider 用 live runner 验证 | 同上 | 同上 | INPUT 大头需 provider usage 证实 |
 | +阶段 4(fork) | 命中率→90%+ | 同上 | 同上 | 逼近 Reasonix |
 

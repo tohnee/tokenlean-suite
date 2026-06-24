@@ -56,6 +56,10 @@ jobs:
         working-directory: 02-mcp-server
         run: node test/test-bench-future.mjs
 
+      - name: 02-mcp-server / coding-agent benchmark
+        working-directory: 02-mcp-server
+        run: node test/test-bench-coding-agent.mjs
+
       # 03-rag-server: install dependencies, then test
       - name: 03-rag-server / install
         working-directory: 03-rag-server
@@ -104,6 +108,7 @@ jobs:
           echo "  02-mcp-server/stdio:           38 assertions"
           echo "  02-mcp-server/http:            26 assertions (needs node 20+)"
           echo "  02-mcp-server/future-bench:    8 assertions"
+          echo "  02-mcp-server/coding-agent:    6 assertions"
           echo "  03-rag-server/unit:            36 assertions"
           echo "  03-rag-server/simulation:      12 assertions"
           echo "  03-rag-server/benchmark:       11 assertions"

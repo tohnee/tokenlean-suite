@@ -10,10 +10,11 @@ console.log('═══ unified benchmark test ═══\n');
 const result = await runSuiteBench({ turns: 12 });
 check('reports OUTPUT dimension', Number.isFinite(result.output.hashVsWriteSavingsPct));
 check('reports FUTURE dimension', result.future.totals.futureSavingsPct >= 30);
+check('reports CODING AGENT combined usage dimension', result.codingAgent.costs.savingsVsFullRewritePct >= 30);
 check('reports INPUT/RAG dimension', result.rag.savingsPct >= 20);
 
 const md = renderSuiteBench(result);
-check('markdown contains three-dimension table', md.includes('| OUTPUT |') && md.includes('| FUTURE INPUT |') && md.includes('| INPUT/RAG |'));
+check('markdown contains benchmark dimension table', md.includes('| OUTPUT |') && md.includes('| FUTURE INPUT |') && md.includes('| CODING AGENT |') && md.includes('| INPUT/RAG |'));
 check('markdown keeps honesty caveat', md.includes('accounting benchmark'));
 
 console.log(`\n═══ ${pass} passed, ${fail} failed ═══`);

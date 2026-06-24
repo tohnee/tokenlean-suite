@@ -9,8 +9,9 @@
 
 - 新增 `02-mcp-server/test/bench-future.mjs`：用真实仓库文件和真实 MCP core 量化 FUTURE INPUT（工具输出进入历史后被后续轮次重复计费）的 context-token-turn 成本。
 - 新增 `02-mcp-server/test/test-bench-future.mjs`：覆盖 FUTURE benchmark 的操作数、lean/naive token、累积重计费收益和报告输出。
+- 新增 `02-mcp-server/test/bench-coding-agent.mjs` 与 `test-bench-coding-agent.mjs`：把 FUTURE INPUT 重计费成本和编辑 OUTPUT 成本合并成 coding-agent 使用场景,计算 TokenLean vs full-rewrite / native-Edit agent 的总成本节省。
 - 重构 `02-mcp-server/test/bench-output.mjs`：导出 `runOutputBench()` / `renderOutputReport()`，保留 CLI 行为，便于统一聚合。
-- 新增 `bin/tl-bench.mjs` 与 `tl bench`：一条命令输出 OUTPUT、FUTURE INPUT、INPUT/RAG 三维度 savings report。
+- 新增 `bin/tl-bench.mjs` 与 `tl bench`：一条命令输出 OUTPUT、FUTURE INPUT、CODING AGENT、INPUT/RAG 四类 savings report。
 - 新增 `test-bench.mjs` 和 `SAVINGS-REPORT.md`：把统一 benchmark 接入测试与发布文件。
 
 ## [Earlier Unreleased] — 2026-06-20
