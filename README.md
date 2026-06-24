@@ -19,7 +19,7 @@
 
 **最重要的认知修正**:对 Claude 这类称职模型,hash 锚点编辑的 **OUTPUT token 节省 ≈ 0**;它的真实价值是**可靠性**(fail-fast 防止改错、无空白匹配失败),而非 token。OUTPUT 维度的真实杠杆是"避免全文件重写"(主要让弱模型和 Write-happy 行为受益),不是 hash 格式本身。
 
-下文保留原始结构,但所有 OUTPUT 与综合节省数字以本框为准。INPUT/FUTURE 维度的数字仍是**未经真实模型在环验证的工程估算**,标注见各处。
+下文保留原始结构,但所有 OUTPUT 与综合节省数字以本框为准。INPUT/FUTURE 维度已补充**确定性会计基准**(`tl bench`):它量化 token/layout 机制本身,但仍不是实模型账单,标注见各处。
 
 ---
 
@@ -276,21 +276,35 @@
 
 ### 各阶段预期收益叠加
 
-**重要**:下表区分"实测"与"工程估算"。只有 OUTPUT 维度经真实 tokenizer 测量;INPUT/FUTURE 为未经真实模型在环验证的估算,以及综合值为推断,不应当作承诺。
+**重要**:下表区分"确定性会计基准"与"真实模型账单"。`tl bench` 现可一次性复现 OUTPUT / FUTURE INPUT / CODING AGENT / INPUT(RAG) 四类 accounting benchmark;它证明工具/布局在 token 会计上能省多少,但不证明真实 agent 一定会选择这些路径,也不替代 provider usage 账单。
+
+`tl bench` 做四件事:
+1. **OUTPUT**:比较全文件 Write、称职 native Edit、hash-anchor edit 的编辑工具调用输出 token。
+2. **FUTURE INPUT**:比较 coding agent 在 repo orientation/search/inspection 时,lean MCP 输出与 naive 全量输出进入历史后被后续轮次重复计费的 context-token-turn 成本。
+3. **CODING AGENT**:把 FUTURE INPUT 的重计费输入成本和编辑 OUTPUT 成本合并成 coding-agent 使用场景,分别对比 full-rewrite agent 与 native-Edit agent。
+4. **INPUT/RAG**:比较 chatbot+RAG 的 naive volatile-first prompt 与 stable-prefix cache-aware prompt。
 
 | 部署到 | INPUT | OUTPUT | FUTURE | 综合 |
 |---|---|---|---|---|
-| 阶段 1(workflow) | 仅审计监控(0 实际控制) | 弱模型/重写场景受益 | 估算 -50~80%*(未实测) | 估算下降,主要来自 FUTURE |
-| +阶段 2(MCP) | 仅审计监控 | **实测**:vs Write -86%、vs 称职 Edit ≈0、弱模型重试 -50~71% | 工具预算强制(确定性) | 视模型与工作负载而定 |
-| +阶段 3(gateway) | 估算命中率→70%+(未实测) | 同上 | 同上 | 估算 INPUT 大头被覆盖 |
+| 阶段 1(workflow) | 仅审计监控(0 实际控制) | 弱模型/重写场景受益 | 会计基准:工具输出重计费可省约 73% context-token-turns | 下降主要来自 FUTURE,实际取决于危险命令命中率 |
+| +阶段 2(MCP) | 仅审计监控 | **实测**:vs Write -86%、vs 称职 Edit ≈0、弱模型重试 -50~71% | 工具预算强制;`bench-future` 可复现 | coding-agent 合并成本基准:约 74% vs full-rewrite agent / 73% vs native-Edit agent |
+| +阶段 3(gateway) | RAG 本地基准约 70% billed-input savings;真实 provider 用 live runner 验证 | 同上 | 同上 | INPUT 大头需 provider usage 证实 |
 | +阶段 4(fork) | 命中率→90%+ | 同上 | 同上 | 逼近 Reasonix |
 
-\* FUTURE 的 -50~80% 是"避免大输出进历史后被 N 轮重复计费"的算术上界(见 1.2 节单次 outline 替代全量读 -99% 的累积效应),但 bash-guard 是黑名单式 best-effort 检测(python/jq/dd 等读取方式不覆盖),实际拦截率取决于命令分布,**未在真实会话上测量**。
+复现命令:
+
+```bash
+tl bench
+tl bench --out SAVINGS-REPORT.md
+node 02-mcp-server/test/bench-future.mjs
+```
+
+FUTURE 的数字来自"避免大输出进历史后被 N 轮重复计费"的会计模型:第 i 次工具输出会在后续 `(T-i+1)` 轮里重复进入输入账单。当前基准用真实仓库文件和真实 MCP core 比较 `fs_outline`/`fs_read_hashed`/`search_lean` 与全量读/递归搜索的输出大小,但 bash-guard 仍是黑名单式 best-effort 检测(python/jq/dd 等读取方式不覆盖),真实拦截率取决于命令分布。
 
 **诚实结论(修订)**:
-- 唯一经真实测量的维度是 OUTPUT,结论是"对称职模型 token 持平、价值在可靠性;对弱模型和全文件重写场景有真实大节省"。
-- INPUT 和 FUTURE 的百分比都是工程估算,需要真实会话数据或网关命中率仪表盘才能证实。
-- 此前 "-60~80% 综合节省" 的说法**撤回**——它从未被端到端测量,且把 OUTPUT 的注水数字计入了。诚实的表述是:三层架构在结构上覆盖三个维度,但只有 OUTPUT 维度有实测支撑,综合收益取决于工作负载,需实测确认。
+- OUTPUT 经真实 tokenizer 测量,结论是"对称职模型 token 持平、价值在可靠性;对弱模型和全文件重写场景有真实大节省"。
+- FUTURE 与 INPUT/RAG 现在有本地会计基准,但需要真实会话数据、provider usage 或网关命中率仪表盘才能转化为账单结论。
+- 此前 "-60~80% 综合节省" 的说法**撤回**——它从未被端到端测量,且把 OUTPUT 的注水数字计入了。诚实的表述是:三层架构在结构上覆盖三个维度,每个维度已有可复现 benchmark,但综合收益取决于工作负载,需实测确认。
 
 ---
 
@@ -366,7 +380,7 @@
 | MCP OUTPUT(vs 称职Edit) | ≈持平(-6%) | 真实tokenizer实测 |
 | MCP OUTPUT(vs 全文件Write) | -86% | 真实tokenizer实测 |
 | MCP OUTPUT(弱模型+重试) | -50~71% | 真实tokenizer实测 |
-| workflow 综合预期 | 未实测 | 仅工程估算 |
+| workflow FUTURE 基准 | `tl bench` / `bench-future.mjs` | 本地会计基准;真实命中率需会话数据 |
 | 三层叠加综合 | 撤回(未端到端实测) | 见修订说明 |
 | 通用方案天花板 vs Reasonix | -80% vs -97.7% | 差距=harness层 |
 

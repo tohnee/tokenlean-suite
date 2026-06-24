@@ -86,6 +86,25 @@ const tail3 = extractTail(sr3.text);
 check('same chunk set across 3 calls produces same normalized tail', tail2 === tail3, `tails differ: "${tail2.slice(0,80)}" vs "${tail3.slice(0,80)}"`);
 check('re-ask count >= 1', core.stats.reaskHits >= 1, `count=${core.stats.reaskHits}`);
 
+// ── 5b. re-ask detection must hash content, not only id/length ──
+console.log('\n[5b] rag_search re-ask content-hash safety');
+core.resetStats();
+const sameLenA = [{ id: 'same', text: 'alpha', score: 0.9 }];
+const sameLenB = [{ id: 'same', text: 'bravo', score: 0.9 }]; // same id and same length, different bytes
+callTool('rag_search', { query: 'same-len-a', top_k: 1, results: sameLenA });
+const sameLenSecond = callTool('rag_search', { query: 'same-len-b', top_k: 1, results: sameLenB });
+check('same id+length but changed text is not a re-ask hit', !sameLenSecond.text.includes('cache hit possible') && core.stats.reaskHits === 0, `hits=${core.stats.reaskHits}`);
+
+// ── 5c. top_k is enforced for external and fallback results ──
+console.log('\n[5c] rag_search top_k enforcement');
+const tooMany = TEST_KB.docs.map((d) => ({ id: d.id, text: d.text, score: 1 }));
+const top2External = callTool('rag_search', { query: 'top2 external', top_k: 2, results: tooMany });
+const externalIds = (top2External.text.match(/^\[\d+\] id:/gm) || []).length;
+check('top_k limits external result count', externalIds === 2, `shown=${externalIds}`);
+const topTooHighFallback = callTool('rag_search', { query: 'top clamp fallback', top_k: 999 });
+const fallbackIds = (topTooHighFallback.text.match(/^\[\d+\] id:/gm) || []).length;
+check('top_k clamps fallback result count to KB size/max', fallbackIds === TEST_KB.docs.length, `shown=${fallbackIds}`);
+
 // ── 6. kb_pin ──
 console.log('\n[6] kb_pin');
 const pin = callTool('kb_pin', { doc_ids: ['d42', 'd17'] });
