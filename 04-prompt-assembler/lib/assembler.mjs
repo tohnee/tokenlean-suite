@@ -36,7 +36,12 @@
  * Pure functions, no I/O. Node >= 18.
  */
 
-const estTokens = (s) => Math.ceil((typeof s === 'string' ? s : JSON.stringify(s)).length / 4);
+// F-10: shared estTokens to prevent drift across modules.
+import { estTokens } from '../../lib/est-tokens.mjs';
+
+// F-7: pull per-provider minimum cacheable prefix from the cache-lifetime model
+// so assemble() and cache-ttl agree on what is "too short to cache".
+import { PROVIDERS } from './cache-ttl.mjs';
 
 // Stability classes, most-stable (cacheable, belongs in prefix) to most-volatile.
 export const STABILITY = {
@@ -89,7 +94,16 @@ export function scanVolatile(text) {
  * the concrete answer to Q3: the assembly structure, made explicit.
  */
 export function assemble(segments, opts = {}) {
-  const minPrefixTokens = opts.minPrefixTokens ?? 1024; // provider min cacheable prefix
+  // F-7: minPrefixTokens resolves in priority order: explicit > provider table > default.
+  // DeepSeek's minPrefixTokens is null (caches from token 0) → treated as 0.
+  let minPrefixTokens;
+  if (opts.minPrefixTokens !== undefined) {
+    minPrefixTokens = opts.minPrefixTokens;
+  } else if (opts.provider && PROVIDERS[opts.provider]) {
+    minPrefixTokens = PROVIDERS[opts.provider].minPrefixTokens ?? 0;
+  } else {
+    minPrefixTokens = 1024; // provider min cacheable prefix
+  }
   const maxBreakpoints = opts.maxBreakpoints ?? 4;      // Anthropic: 4 cache_control max
 
   // 1. order: by role hierarchy first (tools→system→messages), then by
@@ -271,19 +285,27 @@ export function reportAssembly(plan) {
  */
 export function toAnthropicMessages(plan) {
   const breakpointIndexes = new Set((plan.breakpoints || []).map((b) => b.afterIndex));
+  const segments = [];
   const toBlock = (seg, index) => {
+    // API-legal block: only type/text/cache_control. Non-standard keys (e.g. a
+    // `tokenlean` field) make the Anthropic Messages API reject with HTTP 400.
+    // Segment metadata is kept in the parallel `diagnostics.segments[]` array.
     const block = {
       type: 'text',
       text: typeof seg.text === 'string' ? seg.text : JSON.stringify(seg.text),
-      tokenlean: {
-        id: seg.id,
-        stability: CLASS_NAME[seg.stability],
-        scope: seg.scope,
-      },
     };
-    if (breakpointIndexes.has(index)) {
+    const hasBreakpoint = breakpointIndexes.has(index);
+    if (hasBreakpoint) {
       block.cache_control = { type: 'ephemeral' };
     }
+    segments.push({
+      index,
+      id: seg.id,
+      role: seg.role,
+      stability: CLASS_NAME[seg.stability],
+      scope: seg.scope,
+      hasBreakpoint,
+    });
     return block;
   };
 
@@ -304,6 +326,7 @@ export function toAnthropicMessages(plan) {
     tailTokens: plan.tailTokens,
     leaks: plan.leaks,
     belowMin: plan.belowMin,
+    segments,
   } };
 }
 

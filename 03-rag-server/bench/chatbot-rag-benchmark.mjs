@@ -105,6 +105,10 @@ function scoreVariant(turns, opts) {
   const minCacheTokens = opts.minCacheTokens ?? 1024;
   const uncachedInputPerMTok = opts.uncachedInputPerMTok ?? 3;
   const cachedReadPerMTok = opts.cachedReadPerMTok ?? 0.3;
+  // F-6: the first time a prefix is written to cache, Anthropic charges a 1.25×
+  // write premium on those tokens. This is applied symmetrically to both naive
+  // and cache-aware variants (whichever writes a cacheable prefix pays it).
+  const cacheWritePremium = opts.cacheWritePremium ?? 1.25;
   let previousPrefix = '';
   let cacheHitTurns = 0;
   let fullInputTokens = 0;
@@ -118,7 +122,14 @@ function scoreVariant(turns, opts) {
     const cachedTokens = canHit ? prefixTokens : 0;
     const uncachedTokens = inputTokens - cachedTokens;
     const billedTokens = uncachedTokens + cachedTokens * (cachedReadPerMTok / uncachedInputPerMTok);
-    const cost = price(uncachedTokens, uncachedInputPerMTok) + price(cachedTokens, cachedReadPerMTok);
+    // F-6: if this turn writes a new cacheable prefix (not a hit), the prefix
+    // portion pays the write premium. Cache-read turns pay the read price.
+    const cacheWriteTokens = (!canHit && prefixTokens >= minCacheTokens) ? prefixTokens : 0;
+    const prefixPortion = cacheWriteTokens > 0 ? cacheWriteTokens : 0;
+    const restTokens = inputTokens - prefixPortion;
+    const cost = canHit
+      ? price(restTokens, uncachedInputPerMTok) + price(cachedTokens, cachedReadPerMTok)
+      : price(restTokens, uncachedInputPerMTok) + price(prefixPortion, uncachedInputPerMTok * cacheWritePremium);
     const commonPrefixWithPrevious = i > 0 ? commonPrefixBytes(turn.prompt, turns[i - 1].prompt) : 0;
 
     if (canHit) cacheHitTurns++;
@@ -136,6 +147,7 @@ function scoreVariant(turns, opts) {
       prefixTokens,
       cachedTokens,
       uncachedTokens,
+      cacheWriteTokens,
       billedTokens,
       cost,
       cacheHit: canHit,

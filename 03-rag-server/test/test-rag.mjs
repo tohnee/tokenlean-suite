@@ -105,6 +105,30 @@ const topTooHighFallback = callTool('rag_search', { query: 'top clamp fallback',
 const fallbackIds = (topTooHighFallback.text.match(/^\[\d+\] id:/gm) || []).length;
 check('top_k clamps fallback result count to KB size/max', fallbackIds === TEST_KB.docs.length, `shown=${fallbackIds}`);
 
+// ── 5d. F-8: non-adjacent re-ask detection (ring buffer) + unified criteria ──
+console.log('\n[5d] rag_search non-adjacent re-ask detection (F-8)');
+core.resetStats();
+const setA = [
+  { id: 'd42', text: 'Refunds are processed in 5-7 business days.', score: 0.9 },
+  { id: 'd17', text: 'Premium plan includes priority support.', score: 0.8 },
+];
+const setB = [
+  { id: 'd99', text: 'API rate limits: 1000 req/min.', score: 0.9 },
+  { id: 'd33', text: 'Two-factor authentication (2FA).', score: 0.8 },
+];
+// call 1: setA (first call, no re-ask)
+callTool('rag_search', { query: 'q1', top_k: 5, results: setA });
+check('call 1: no re-ask yet', core.stats.reaskHits === 0, `hits=${core.stats.reaskHits}`);
+// call 2: setB (different — no re-ask)
+callTool('rag_search', { query: 'q2', top_k: 5, results: setB });
+check('call 2: different set, no re-ask', core.stats.reaskHits === 0, `hits=${core.stats.reaskHits}`);
+// call 3: setA again (non-adjacent repeat — old code only compares with previous call)
+const sr3b = callTool('rag_search', { query: 'q3', top_k: 5, results: setA });
+check('call 3: non-adjacent repeat detected (ring buffer)', core.stats.reaskHits >= 1, `hits=${core.stats.reaskHits}`);
+// F-8: the "same chunk set seen before" note must use the SAME criteria as isReask
+// (i.e. appear on the first re-ask, not require reaskHits > 1)
+check('re-ask note appears on first detection', /same chunk set|cache hit/i.test(sr3b.text), `text=${sr3b.text.slice(0, 200)}`);
+
 // ── 6. kb_pin ──
 console.log('\n[6] kb_pin');
 const pin = callTool('kb_pin', { doc_ids: ['d42', 'd17'] });

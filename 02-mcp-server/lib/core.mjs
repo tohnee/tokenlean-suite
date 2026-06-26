@@ -17,7 +17,7 @@
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
-import { resolve, join, relative, isAbsolute, sep } from 'node:path';
+import { resolve, join, relative, isAbsolute, sep, basename } from 'node:path';
 
 export const SERVER_INFO = { name: 'tokenlean-mcp', version: '0.2.0' };
 
@@ -50,7 +50,8 @@ export class ToolError extends Error {}
 // See resolveAnchors for the additional uniqueness + context guards.
 const HASH_LEN = 4;
 const hashLine = (s) => createHash('sha256').update(s).digest('hex').slice(0, HASH_LEN);
-const estTokens = (s) => Math.ceil(s.length / 4);
+// F-10: shared estTokens to prevent drift across modules.
+import { estTokens } from '../../lib/est-tokens.mjs';
 
 const OUTLINE_PATTERNS = [
   /^\s*(export\s+)?(default\s+)?(async\s+)?function\s+\w+/,
@@ -363,6 +364,10 @@ export function createCore({ root, readOnly = false }) {
         const files = [];
         (function walk(dir) {
           if (files.length >= LIMITS.SEARCH_MAX_FILES) return;
+          // F-9: don't descend into IGNORE_DIRS even when explicitly requested
+          // as the starting path (e.g. path: '.git'). Children are already
+          // filtered by name below, but the starting directory itself was not.
+          if (IGNORE_DIRS.has(basename(dir))) return;
           const st = statSync(dir);
           if (st.isFile()) { files.push(dir); return; }
           for (const name of readdirSync(dir)) {
@@ -399,14 +404,16 @@ export function createCore({ root, readOnly = false }) {
       name: 'token_report',
       description:
         'Report this session\'s hash-anchored edit activity and OUTPUT-token accounting. ' +
-        'Shows actual tokens emitted vs a FULL-REWRITE upper bound; note that vs a competent ' +
+        'Shows actual tokens emitted vs a NAIVE old_str upper bound; note that vs a competent ' +
         'minimal-unique str_replace the savings are typically small or neutral on strong models ' +
         '(see bench-output.mjs). The real wins are: safety (fail-fast on stale anchors) and big ' +
         'savings only when the alternative was a full-file rewrite.',
       inputSchema: { type: 'object', properties: {} },
       handler: () => {
-        // baselineOutTokens = full-block reproduction = what Write / a naive model emits.
-        // This is an UPPER BOUND on savings, not the typical case. Be explicit.
+        // F-4: baselineOutTokens = naive full-block old_str (the str_replace
+        // tool-call: old_str+new_str), NOT a full-file Write. Labelling it
+        // "full-rewrite" overstated savings. This is an UPPER BOUND on the
+        // str_replace cost, not the Write cost.
         const vsRewrite = Math.max(0, stats.baselineOutTokens - stats.actualOutTokens);
         const pctRewrite = stats.baselineOutTokens ? Math.round((vsRewrite / stats.baselineOutTokens) * 100) : 0;
         return [
@@ -417,8 +424,8 @@ export function createCore({ root, readOnly = false }) {
           ``,
           `OUTPUT tokens (chars/4 estimate — run bench-output.mjs for BPE-accurate numbers):`,
           `  hash-anchored actual:        ~${stats.actualOutTokens}`,
-          `  full-rewrite upper bound:    ~${stats.baselineOutTokens}  (Write / naive full-block old_str)`,
-          `  saved vs full rewrite:       ~${vsRewrite}  (${pctRewrite}%)  ← UPPER BOUND only`,
+          `  naive old_str upper bound:   ~${stats.baselineOutTokens}  (naive str_replace: old_str+new_str)`,
+          `  saved vs naive old_str:      ~${vsRewrite}  (${pctRewrite}%)  ← UPPER BOUND only`,
           ``,
           `Honest note: vs a competent minimal-unique str_replace, hash editing is roughly`,
           `neutral on strong models (often within ±10%). Its durable value is fail-fast safety`,

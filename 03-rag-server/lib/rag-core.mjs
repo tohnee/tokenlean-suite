@@ -58,7 +58,7 @@ export function createRagCore(opts = {}) {
     totalRetrievedChunks: 0,
     totalRetrievedTokens: 0,
     reaskHits: 0,       // number of times multi-turn re-ask had byte-identical tail
-    lastTailHash: null,  // detects when the same chunk set comes back
+    recentTailHashes: [],  // F-8: ring buffer of recent tail hashes (non-adjacent repeat detection)
   };
 
   /** Reset session stats (for session isolation). */
@@ -69,7 +69,7 @@ export function createRagCore(opts = {}) {
     stats.totalRetrievedChunks = 0;
     stats.totalRetrievedTokens = 0;
     stats.reaskHits = 0;
-    stats.lastTailHash = null;
+    stats.recentTailHashes = [];
   }
 
   // ── In-memory "pinned" docs registry ──
@@ -124,13 +124,16 @@ export function createRagCore(opts = {}) {
     stats.totalRetrievedChunks += normalized.length;
     stats.totalRetrievedTokens += normalized.reduce((s, c) => s + estTokens(c.text), 0);
 
-    // Detect re-ask: is this tail byte-identical to the last one?
+    // F-8: detect re-ask using a ring buffer of recent tail hashes (not just
+    // the last call), so non-adjacent repeats (A, B, A) are also caught.
     const tailHash = normalized.map((c) => `${c.id}:${hashText(c.text)}`).join('|');
-    const isReask = stats.lastTailHash === tailHash;
+    const isReask = stats.recentTailHashes.includes(tailHash);
     if (isReask) {
       stats.reaskHits++;
     }
-    stats.lastTailHash = tailHash;
+    // update ring buffer (keep last 5)
+    stats.recentTailHashes.push(tailHash);
+    if (stats.recentTailHashes.length > 5) stats.recentTailHashes.shift();
 
     // Build the pinned prefix from the KB index + user-pinned docs
     const pinned = [];
@@ -162,7 +165,7 @@ export function createRagCore(opts = {}) {
       ``,
       `stable prefix (cacheable):  ${pinned.length} segment(s), ~${prefixTokens} tokens`,
       `normalized tail (volatile): ${normalized.length} chunk(s), ~${tailTokens} tokens`,
-      ...(stats.reaskHits > 1
+      ...(isReask
         ? [`note: same chunk set seen before — tail is byte-stable, cache can hit`]
         : []),
       ``,
@@ -172,7 +175,7 @@ export function createRagCore(opts = {}) {
       `--- chunk text ---`,
       ...normalized.map((c, i) => `[${i + 1}] ${c.text}`),
       ...(isReask && stats.searches > 1
-        ? [`\n[!] same chunk set as previous query — cache hit possible for the volatile tail too (id-sorted, byte-identical)`]
+        ? [`\n[!] same chunk set as a previous query — cache hit possible for the volatile tail too (id-sorted, byte-identical)`]
         : []),
     ].join('\n');
   }

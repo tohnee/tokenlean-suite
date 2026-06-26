@@ -51,10 +51,17 @@ export function analyze(pathOrDir) {
 
   const totalIn = acc.input + acc.hit + acc.write;
   const hitRate = totalIn ? (acc.hit / totalIn) * 100 : 0;
+  // F-5: when the ephemeral 5m/1h breakdown is available, weight write cost by
+  // tier (1h writes cost 6.0× vs 5m's 3.75×). Falls back to flat 5m price for
+  // transcripts that lack the breakdown (older API responses), so sparse
+  // sessions with 1h writes are no longer under-costed.
+  const writeCost = (acc.eph5 + acc.eph1h > 0)
+    ? (acc.eph5 / 1e6) * PRICE.write5m + (acc.eph1h / 1e6) * PRICE.write1h
+    : (acc.write / 1e6) * PRICE.write5m;
   const cost =
     (acc.input / 1e6) * PRICE.in +
     (acc.hit / 1e6) * PRICE.hitRead +
-    (acc.write / 1e6) * PRICE.write5m +
+    writeCost +
     (acc.out / 1e6) * PRICE.out;
   const noCache = (totalIn / 1e6) * PRICE.in + (acc.out / 1e6) * PRICE.out;
   const savedPct = noCache ? (1 - cost / noCache) * 100 : 0;

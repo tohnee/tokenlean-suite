@@ -23,8 +23,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// ── Sloppy token estimator (chars/4, Anthropic-style) ──
-const estTokens = (s) => Math.ceil((typeof s === 'string' ? s : JSON.stringify(s)).length / 4);
+// F-10: shared estTokens to prevent drift across modules.
+import { estTokens } from '../../lib/est-tokens.mjs';
 
 // ── Test framework ──
 let pass = 0, fail = 0;

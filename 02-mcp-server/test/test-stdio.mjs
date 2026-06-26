@@ -237,6 +237,13 @@ const searchAll = await call('search_lean', { pattern: 'const v', path: 'src', m
 const shownAll = searchAll.text.split('\n').filter((l) => l.includes('big.ts:')).length;
 check('hard cap (80) enforced even when asked for 999', shownAll <= 80, `shown=${shownAll}`);
 
+// 10b. F-9: search_lean must not descend into IGNORE_DIRS even when explicitly requested
+console.log('\n[10b] search_lean ignores .git even when explicitly requested (F-9)');
+mkdirSync(join(SANDBOX, '.git'), { recursive: true });
+writeFileSync(join(SANDBOX, '.git', 'config'), '[core]\n\trepositoryformatversion = 0\nNEEDLE_F9_MARKER\n');
+const searchGit = await call('search_lean', { pattern: 'NEEDLE_F9_MARKER', path: '.git' });
+check('.git dir ignored even when explicitly requested', !searchGit.text.includes('.git/config'), searchGit.text.slice(0, 200));
+
 // 11. path safety
 console.log('\n[11] workspace sandboxing');
 const escape = await call('fs_read_hashed', { path: '../../etc/passwd' });
@@ -246,7 +253,10 @@ check('path escape rejected', escape.isError === true && escape.text.includes('e
 console.log('\n[12] token_report');
 const report = await call('token_report', {});
 check('reports edits count', /edits applied:\s+\d+/.test(report.text));
-check('reports savings estimate', /saved vs full rewrite:\s+~\d+/.test(report.text));
+// F-4: the baseline is a naive full-block old_str (str_replace), NOT a full-file
+// Write. The label must say so to avoid overstating savings.
+check('reports savings vs naive old_str', /saved vs naive old_str:\s+~\d+/.test(report.text));
+check('does not mislabel baseline as full-rewrite/Write', !/full-rewrite upper bound/.test(report.text));
 console.log('\n--- session report ---\n' + report.text + '\n----------------------');
 
 // ── OUTPUT token comparison (MCP-format realistic) ──

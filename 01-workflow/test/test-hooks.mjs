@@ -101,6 +101,51 @@ console.log('\n[3] hit-rate (INPUT observability)');
   ok('savings positive', r.savedPct > 0);
 }
 
+// ── 3b. hit-rate F-5: weighted 5m/1h write cost ──
+console.log('\n[3b] hit-rate weighted 5m/1h write cost (F-5)');
+{
+  // Transcript with ephemeral_5m / ephemeral_1h breakdown
+  const t = join(SANDBOX, 's_ttl.jsonl');
+  writeFileSync(t, [
+    JSON.stringify({ message: { usage: {
+      input_tokens: 1000, cache_read_input_tokens: 5000,
+      cache_creation_input_tokens: 1000,
+      cache_creation: { ephemeral_5m_input_tokens: 600, ephemeral_1h_input_tokens: 400 },
+      output_tokens: 200,
+    } } }),
+    JSON.stringify({ message: { usage: {
+      input_tokens: 500, cache_read_input_tokens: 8000,
+      cache_creation_input_tokens: 500,
+      cache_creation: { ephemeral_5m_input_tokens: 300, ephemeral_1h_input_tokens: 200 },
+      output_tokens: 100,
+    } } }),
+  ].join('\n'));
+  const r = analyze(t);
+  // eph5=900, eph1h=600, write=1500
+  ok('ephemeral tokens parsed', r.eph5 === 900 && r.eph1h === 600, `eph5=${r.eph5} eph1h=${r.eph1h}`);
+  // Weighted write cost = 900*3.75 + 600*6.0 per Mtok = 0.006975
+  // Flat (old) write cost = 1500*3.75 per Mtok = 0.005625
+  // Total weighted cost = 1500*3 + 13000*0.3 + 0.006975 + 300*15  per Mtok
+  const expectedWeighted = (1500/1e6)*3.0 + (13000/1e6)*0.3 + (900/1e6)*3.75 + (600/1e6)*6.0 + (300/1e6)*15.0;
+  const oldFlat = (1500/1e6)*3.0 + (13000/1e6)*0.3 + (1500/1e6)*3.75 + (300/1e6)*15.0;
+  ok('cost uses weighted 5m/1h prices', Math.abs(r.cost - expectedWeighted) < 1e-9, `got ${r.cost} expected ${expectedWeighted}`);
+  ok('weighted cost > flat-5m cost (1h is pricier)', r.cost > oldFlat, `weighted=${r.cost} flat=${oldFlat}`);
+}
+
+// ── 3c. hit-rate F-5: backward compat (no ephemeral breakdown) ──
+console.log('\n[3c] hit-rate backward compat: no ephemeral breakdown (F-5)');
+{
+  const t = join(SANDBOX, 's_old.jsonl');
+  writeFileSync(t, [
+    JSON.stringify({ message: { usage: { input_tokens: 1000, cache_read_input_tokens: 9000, cache_creation_input_tokens: 500, output_tokens: 300 } } }),
+  ].join('\n'));
+  const r = analyze(t);
+  ok('no ephemeral tokens', r.eph5 === 0 && r.eph1h === 0);
+  // Falls back to flat write5m: 500*3.75 per Mtok
+  const expected = (1000/1e6)*3.0 + (9000/1e6)*0.3 + (500/1e6)*3.75 + (300/1e6)*15.0;
+  ok('fallback uses flat write5m price', Math.abs(r.cost - expected) < 1e-9, `got ${r.cost} expected ${expected}`);
+}
+
 // ── 4. session-start hook ──
 console.log('\n[4] session-start hook (INPUT)');
 {

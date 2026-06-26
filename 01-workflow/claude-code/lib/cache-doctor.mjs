@@ -15,7 +15,8 @@ const UUID_RE =
 const PLACEHOLDER_RE = /\{\{\s*[a-zA-Z_]+\s*\}\}|\$\{[a-zA-Z_]+\}/;
 const KNOWN_DYNAMIC = /(date|now|today|timestamp|time|uuid|nanoid|session_id|sessionId|random)/;
 
-const estTokens = (s) => Math.ceil(s.length / 4);
+// F-10: shared estTokens to prevent drift across modules.
+import { estTokens } from '../../../lib/est-tokens.mjs';
 
 /**
  * @param {string} text  contents of CLAUDE.md / AGENTS.md / system prompt file

@@ -156,5 +156,63 @@ console.log('\n[8] Anthropic adapter emits cache_control at planned breakpoints'
   ok('volatile user question is not cache-marked', !out.messages.at(-1).content[0].cache_control);
 }
 
+// ── F-3: Anthropic adapter blocks must be API-safe (no non-standard keys) ──
+console.log('\n[9] Anthropic adapter blocks contain only API-legal keys (F-3)');
+{
+  const plan = assemble([
+    { id: 'tools', role: 'tools', stability: STABILITY.STATIC, text: 'tool defs ' + 'x'.repeat(5000), scope: 'tenant' },
+    { id: 'system', role: 'system', stability: STABILITY.STATIC, text: 'system rules ' + 'x'.repeat(5000) },
+    { id: 'kb', role: 'system', stability: STABILITY.SESSION, text: 'kb index ' + 'x'.repeat(5000), scope: 'session' },
+    { id: 'history', role: 'messages', stability: STABILITY.ROLLING, text: 'previous turn' },
+    { id: 'q', role: 'messages', stability: STABILITY.VOLATILE, text: 'current question', scope: 'request' },
+  ]);
+  const out = toAnthropicMessages(plan);
+  const allBlocks = [...out.tools, ...out.system, ...out.messages.flatMap((m) => m.content)];
+  ok('no block carries a tokenlean field', allBlocks.every((b) => !('tokenlean' in b)));
+  ok('every block key is API-legal (type/text/cache_control)', allBlocks.every((b) => Object.keys(b).every((k) => ['type', 'text', 'cache_control'].includes(k))));
+  const segs = out.diagnostics.segments;
+  ok('diagnostics.segments carries parallel metadata', Array.isArray(segs) && segs.length === allBlocks.length);
+  ok('segment metadata has id/stability/scope', Array.isArray(segs) && segs.every((s) => 'id' in s && 'stability' in s && 'scope' in s));
+  ok('segment metadata records breakpoint flag', Array.isArray(segs) && segs.every((s) => typeof s.hasBreakpoint === 'boolean'));
+  // the cache_control-bearing block's segment must flag hasBreakpoint
+  const bpSegs = Array.isArray(segs) ? segs.filter((s) => s.hasBreakpoint) : [];
+  ok('breakpoint segments count matches cache_control blocks', bpSegs.length === allBlocks.filter((b) => b.cache_control).length);
+}
+
+// ── F-7: assemble() pulls minPrefixTokens from cache-ttl PROVIDERS via opts.provider ──
+console.log('\n[10] provider-aware minPrefixTokens (F-7)');
+{
+  // ~600-token prefix: below anthropic min (1024), above deepseek min (null/0)
+  const medPrefix = 'x'.repeat(2400); // ~600 tokens
+  const segs = [
+    { id: 'system', role: 'system', stability: STABILITY.STATIC, text: medPrefix },
+    { id: 'q', role: 'messages', stability: STABILITY.VOLATILE, text: 'hi' },
+  ];
+
+  // default: no provider → 1024 (unchanged backward compat)
+  const def = assemble(segs);
+  ok('default minPrefixTokens is 1024', def.belowMin === true, `belowMin=${def.belowMin}`);
+
+  // anthropic provider → 1024 from PROVIDERS
+  const ant = assemble(segs, { provider: 'anthropic' });
+  ok('anthropic provider min = 1024 (belowMin)', ant.belowMin === true, `belowMin=${ant.belowMin}`);
+
+  // deepseek provider → null min (from-token-0), so NOT belowMin
+  const ds = assemble(segs, { provider: 'deepseek' });
+  ok('deepseek provider min = null (not belowMin)', ds.belowMin === false, `belowMin=${ds.belowMin}`);
+
+  // explicit minPrefixTokens overrides provider
+  const explicit = assemble(segs, { provider: 'anthropic', minPrefixTokens: 100 });
+  ok('explicit minPrefixTokens overrides provider', explicit.belowMin === false, `belowMin=${explicit.belowMin}`);
+
+  // large prefix clears anthropic min
+  const big = 'x'.repeat(5000);
+  const bigPlan = assemble([
+    { id: 'system', role: 'system', stability: STABILITY.STATIC, text: big },
+    { id: 'q', role: 'messages', stability: STABILITY.VOLATILE, text: 'hi' },
+  ], { provider: 'anthropic' });
+  ok('large prefix clears anthropic provider min', bigPlan.belowMin === false && bigPlan.cacheable === true);
+}
+
 console.log(`\n═══ ${pass} passed, ${fail} failed ═══`);
 process.exit(fail ? 1 : 0);
