@@ -20,6 +20,15 @@ ok('deepseek disk-backed (no fixed small TTL)', PROVIDERS.deepseek.diskBacked ==
 ok('gemini explicit charges storage', /token-hour/.test(PROVIDERS.gemini.storageCost));
 ok('as-of stamp present', /^\d{4}-\d{2}$/.test(TTL_TABLE_AS_OF));
 
+console.log('\n[F-7] provider minPrefixTokens configuration (F-7)');
+ok('anthropic minPrefixTokens = 1024', PROVIDERS.anthropic.minPrefixTokens === 1024);
+ok('anthropic maxBreakpoints = 4', PROVIDERS.anthropic.maxBreakpoints === 4);
+ok('openai minPrefixTokens = 1024', PROVIDERS.openai.minPrefixTokens === 1024);
+ok('openai maxBreakpoints = null (automatic)', PROVIDERS.openai.maxBreakpoints === null);
+ok('deepseek minPrefixTokens = null (from token 0)', PROVIDERS.deepseek.minPrefixTokens === null);
+ok('gemini minPrefixTokens = 1024', PROVIDERS.gemini.minPrefixTokens === 1024);
+ok('all providers have minPrefixTokens defined', ['anthropic','openai','deepseek','gemini'].every(p => 'minPrefixTokens' in PROVIDERS[p]));
+
 console.log('\n[2] three bounding forces documented');
 ok('exactly 3 bounding forces', BOUNDING_FORCES.length === 3);
 ok('covers TTL eviction', BOUNDING_FORCES.some(f => /eviction/i.test(f.force)));

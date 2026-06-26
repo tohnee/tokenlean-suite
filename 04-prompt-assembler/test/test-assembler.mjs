@@ -201,6 +201,14 @@ console.log('\n[10] provider-aware minPrefixTokens (F-7)');
   const ds = assemble(segs, { provider: 'deepseek' });
   ok('deepseek provider min = null (not belowMin)', ds.belowMin === false, `belowMin=${ds.belowMin}`);
 
+  // openai provider → 1024 from PROVIDERS
+  const oai = assemble(segs, { provider: 'openai' });
+  ok('openai provider min = 1024 (belowMin)', oai.belowMin === true, `belowMin=${oai.belowMin}`);
+
+  // gemini provider → 1024 from PROVIDERS
+  const gem = assemble(segs, { provider: 'gemini' });
+  ok('gemini provider min = 1024 (belowMin)', gem.belowMin === true, `belowMin=${gem.belowMin}`);
+
   // explicit minPrefixTokens overrides provider
   const explicit = assemble(segs, { provider: 'anthropic', minPrefixTokens: 100 });
   ok('explicit minPrefixTokens overrides provider', explicit.belowMin === false, `belowMin=${explicit.belowMin}`);
