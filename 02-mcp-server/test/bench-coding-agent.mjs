@@ -65,6 +65,29 @@ export async function runCodingAgentBench(opts = {}) {
     cost(leanOneShot, pricing.inputPerMTok) +
     cost(leanRebill, pricing.inputPerMTok * historyCacheReadMultiplier);
 
+  // ── F-2 detailed logging: cache-read discount breakdown ──
+  if (process.env.TL_BENCH_VERBOSE) {
+    const fmt = (n) => n.toLocaleString();
+    process.stderr.write([
+      '\n━━━ F-2: Cache-read discount breakdown ━━━',
+      `  historyCacheReadMultiplier = ${historyCacheReadMultiplier}× (cache-read vs full-price input)`,
+      '',
+      '  NAIVE (full-file reads):',
+      `    one-shot tokens      = ${fmt(naiveOneShot)}  → cost = ${money(cost(naiveOneShot, pricing.inputPerMTok))}  (full ${pricing.inputPerMTok}/Mtok)`,
+      `    re-billed tokens     = ${fmt(naiveRebill)}  → cost = ${money(cost(naiveRebill, pricing.inputPerMTok * historyCacheReadMultiplier))}  (${(pricing.inputPerMTok * historyCacheReadMultiplier).toFixed(2)}/Mtok)`,
+      `    total (cached model) = ${money(naiveFutureCost)}`,
+      `    total (old 1× model) = ${money(cost(naiveFutureTokenTurns, pricing.inputPerMTok))}  ← old overstatement`,
+      `    overstatement factor = ${(cost(naiveFutureTokenTurns, pricing.inputPerMTok) / naiveFutureCost).toFixed(1)}×`,
+      '',
+      '  LEAN (outline/bounded reads):',
+      `    one-shot tokens      = ${fmt(leanOneShot)}  → cost = ${money(cost(leanOneShot, pricing.inputPerMTok))}`,
+      `    re-billed tokens     = ${fmt(leanRebill)}  → cost = ${money(cost(leanRebill, pricing.inputPerMTok * historyCacheReadMultiplier))}`,
+      `    total (cached model) = ${money(leanFutureCost)}`,
+      `    total (old 1× model) = ${money(cost(leanFutureTokenTurns, pricing.inputPerMTok))}  ← old overstatement`,
+      '',
+    ].join('\n') + '\n');
+  }
+
   const futureInput = {
     naiveTokens: naiveFutureTokenTurns,
     tokenleanTokens: leanFutureTokenTurns,
@@ -98,6 +121,32 @@ export async function runCodingAgentBench(opts = {}) {
   const nativeEditBaseline  = matrix.costs['naive+edit'];  // strawman: smart edit + dumb reads
   const leanEditBaseline    = matrix.costs['lean+edit'];   // apples-to-apples: smart edit + lean reads
   const tokenlean           = matrix.costs['lean+hash'];
+
+  // ── F-1 detailed logging: 2×2 matrix decomposition ──
+  if (process.env.TL_BENCH_VERBOSE) {
+    const readAxisPct = (1 - leanFutureCost / naiveFutureCost) * 100;
+    const editAxisPct = (1 - tokenlean / leanEditBaseline) * 100;
+    process.stderr.write([
+      '━━━ F-1: 2×2 cost matrix decomposition ━━━',
+      `  Read axis: naive → lean   (isolates lean reading effect)`,
+      `  Edit axis: write → edit → hash   (isolates edit method effect)`,
+      '',
+      '  Cost matrix (read × edit):',
+      `    naive + write = ${money(matrix.costs['naive+write'])}   (full-rewrite baseline)`,
+      `    naive + edit  = ${money(matrix.costs['naive+edit'])}   (strawman: smart edit + dumb reads)`,
+      `    lean  + edit  = ${money(matrix.costs['lean+edit'])}   (apples-to-apples: smart edit + lean reads)`,
+      `    lean  + hash  = ${money(matrix.costs['lean+hash'])}   (TokenLean: hash edit + lean reads)`,
+      '',
+      '  Lever isolation:',
+      `    Read-axis effect  (naive+edit → lean+edit):   ${pct(readAxisPct)} savings ← THE BIG LEVER`,
+      `    Edit-axis effect  (lean+edit → lean+hash):   ${pct(editAxisPct)} savings ← hash vs Edit, apples-to-apples`,
+      `    Combined effect   (naive+edit → lean+hash):  ${pct((1 - tokenlean / nativeEditBaseline) * 100)} savings ← old headline number`,
+      '',
+      `  OUTPUT tokens: write=${outputTokens.writeTokens} edit=${outputTokens.nativeEditTokens} hash=${outputTokens.tokenleanHashTokens}`,
+      `  FUTURE INPUT tokens: naive=${naiveFutureTokenTurns} lean=${leanFutureTokenTurns}`,
+      '',
+    ].join('\n') + '\n');
+  }
 
   return {
     dimension: 'CODING AGENT',
