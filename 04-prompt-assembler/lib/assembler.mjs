@@ -92,6 +92,21 @@ export function scanVolatile(text) {
  *
  * Produces a stable ordering, breakpoint placement, and a diagnosis. This is
  * the concrete answer to Q3: the assembly structure, made explicit.
+ *
+ * F-7 fix: minPrefixTokens is resolved per-provider from cache-ttl.PROVIDERS
+ * instead of being hardcoded. Resolution priority:
+ *   1. Explicit opts.minPrefixTokens (overrides everything)
+ *   2. opts.provider → reads PROVIDERS[opts.provider].minPrefixTokens
+ *      - anthropic/openai/gemini: 1024 tokens
+ *      - deepseek: null → 0 (caches from token 0, no minimum prefix)
+ *   3. Fallback default: 1024 tokens
+ *
+ * @param {Segment[]} segments  prompt segments to order and plan
+ * @param {object} [opts]
+ * @param {string} [opts.provider]  provider id ('anthropic'|'openai'|'deepseek'|'gemini')
+ * @param {number} [opts.minPrefixTokens]  explicit override for provider min
+ * @param {number} [opts.maxBreakpoints=4]  max cache_control markers (Anthropic limit)
+ * @returns {object} plan with ordered segments, breakpoints, cacheability diagnosis
  */
 export function assemble(segments, opts = {}) {
   // F-7: minPrefixTokens resolves in priority order: explicit > provider table > default.
@@ -282,6 +297,21 @@ export function reportAssembly(plan) {
  * This adapter intentionally keeps the module pure: it does not call a provider
  * API, but it turns the structural plan into directly usable blocks with
  * cache_control markers at the planned breakpoint segment boundaries.
+ *
+ * F-3 fix: Output blocks strictly conform to Anthropic Messages API schema.
+ *   Each content block contains ONLY three legal keys:
+ *     - type:       always "text"
+ *     - text:        the segment text content
+ *     - cache_control: { type: "ephemeral" } ONLY at breakpoint positions
+ *
+ *   Internal metadata (id, role, stability, scope, hasBreakpoint) is kept in
+ *   the PARALLEL diagnostics.segments[] array, NEVER attached to API blocks.
+ *   Adding non-standard keys like "tokenlean" causes HTTP 400 errors from
+ *   the Anthropic API.
+ *
+ * @param {object} plan  output from assemble()
+ * @returns {{tools: object[], system: object[], messages: object[], diagnostics: object}}
+ *          API-safe blocks separated by role, plus diagnostic metadata
  */
 export function toAnthropicMessages(plan) {
   const breakpointIndexes = new Set((plan.breakpoints || []).map((b) => b.afterIndex));
